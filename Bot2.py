@@ -1,7 +1,7 @@
-import requests
-import json
-import utils
 import ConfigParser
+import json
+
+import requests
 
 base_private_url = 'https://webapi.coinfloor.co.uk:8090/bist/{fromccy}/{toccy}/{op}/'
 
@@ -31,24 +31,25 @@ if __name__ == "__main__":
 
     op = 'user_transactions'
     user_txns = base_private_url.format(fromccy=fromccy, toccy=toccy, op=op)
-    s = requests.Session()
-    s.auth = (user, password)
+    # s = requests.Session()
+    # s.auth = (user, password)
     resp = s.get(user_txns)
     if resp.status_code == 200:
         # print json.dumps(resp.json(), indent=2)
         for txn in resp.json():
-            print(txn)
+            print json.dumps(txn, indent=2)
     else:
         print(resp.status_code)
 
     op = 'open_orders'
     user_txns = base_private_url.format(fromccy=fromccy, toccy=toccy, op=op)
-    s = requests.Session()
-    s.auth = (user, password)
+    # s = requests.Session()
+    # s.auth = (user, password)
     resp = s.get(user_txns)
     if resp.status_code == 200:
+        print('open orders:')
         # print json.dumps(resp.json(), indent=2)
         for txn in resp.json():
-            print(txn)
+            print json.dumps(txn, indent=2)
     else:
         print(resp.status_code)

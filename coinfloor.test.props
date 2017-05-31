@@ -1,0 +1,8 @@
+[coinfloor]
+url = https://webapi.coinfloor.co.uk:8090/bist/{fromccy}/{toccy}/{op}/
+default_fromccy = XBT
+default_toccy = GBP
+
+[user]
+userid = wibble
+password = bat
