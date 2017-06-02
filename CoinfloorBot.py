@@ -15,7 +15,8 @@ class UserTransaction:
     def __init__(self):
         self.tf_date = None
         self.tid = None
-        self.type = None
+        self.raw_type = None
+        self.mapped_type = None
         self.gbp = None
         self.xbt = None
         self.xbt_gbp = None
@@ -25,7 +26,8 @@ class UserTransaction:
     def parse(self, txn):
         self.tf_date = str(txn['datetime'])
         self.tid = int(txn['id'])
-        self.type = self.txn_type_map[int(txn['type'])]
+        self.raw_type = int(txn['type'])
+        self.mapped_type = self.txn_type_map[self.raw_type]
         self.gbp = float(txn['gbp'])
         self.xbt = float(txn['xbt'])
         try:
@@ -36,7 +38,7 @@ class UserTransaction:
         self.fee = float(txn['fee'])
 
     def __repr__(self):
-        return 'date: {} type: {:20} GBP: {:7}  XBT: {:7} - id {}'.format(self.tf_date, self.type, self.gbp, self.xbt, self.tid)
+        return 'date: {} type: {:20} GBP: {:7}  XBT: {:7} @ {:7}  - id {}'.format(self.tf_date, self.mapped_type, self.gbp, self.xbt, self.xbt_gbp, self.tid)
 
 
 class Transaction:
