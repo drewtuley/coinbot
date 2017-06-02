@@ -1,16 +1,17 @@
-from CoinfloorBot import CoinfloorBot
 import time
 
+from CoinfloorBot import CoinfloorBot
 
-def calc_cost_price(xbt_bal, txns):
+
+def calc_cost_price(xbt_amount, txns):
     acc_xbt_bal = 0
     acc_gbp_cost = 0.0
-    for txn in txns:    
-        if txn.raw_type == 2 and txn.gbp < 0:     # buy
+    for txn in txns:
+        if txn.raw_type == 2 and txn.gbp < 0:  # buy
             acc_xbt_bal += txn.xbt
             acc_gbp_cost += txn.gbp
-            
-        if acc_xbt_bal >= xbt_bal:
+
+        if acc_xbt_bal >= xbt_amount:
             break
 
     return acc_gbp_cost * -1.0
@@ -19,8 +20,8 @@ def calc_cost_price(xbt_bal, txns):
 def calc_sale_price(xbt_amount, txns):
     acc_xbt_bal = 0
     acc_gbp_cost = 0.0
-    for txn in txns:    
-        if txn.raw_type == 2 and txn.gbp > 0:     # sell
+    for txn in txns:
+        if txn.raw_type == 2 and txn.gbp > 0:  # sell
             if acc_xbt_bal + (txn.xbt * -1) > xbt_amount:
                 partial_amount = xbt_amount - acc_xbt_bal
                 acc_gbp_cost += txn.xbt_gbp * partial_amount
@@ -28,11 +29,12 @@ def calc_sale_price(xbt_amount, txns):
             else:
                 acc_xbt_bal += txn.xbt * -1
                 acc_gbp_cost += txn.gbp
-            
+
         if acc_xbt_bal >= xbt_amount:
             break
 
-    return acc_gbp_cost 
+    return acc_gbp_cost
+
 
 if __name__ == "__main__":
     cb = CoinfloorBot()
@@ -79,5 +81,4 @@ if __name__ == "__main__":
                 else:
                     print('wait for price to drop to {}'.format(sale_price - gbp_profit))
 
-            time.sleep(1) 
-
+            time.sleep(1)

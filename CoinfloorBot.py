@@ -1,12 +1,11 @@
 from __future__ import print_function
 
 import ConfigParser
+import json
 
 import requests
 
 import utils
-
-import json
 
 
 class UserTransaction:
@@ -38,7 +37,9 @@ class UserTransaction:
         self.fee = float(txn['fee'])
 
     def __repr__(self):
-        return 'date: {} type: {:20} GBP: {:7}  XBT: {:7} @ {:7}  - id {}'.format(self.tf_date, self.mapped_type, self.gbp, self.xbt, self.xbt_gbp, self.tid)
+        return 'date: {} type: {:20} GBP: {:7}  XBT: {:7} @ {:7}  - id {}'.format(self.tf_date, self.mapped_type,
+                                                                                  self.gbp, self.xbt, self.xbt_gbp,
+                                                                                  self.tid)
 
 
 class Transaction:
@@ -95,7 +96,7 @@ class OpenOrder(Order):
         self.order_date = None
 
     def parse(self, order):
-        Order.parse(self, [order['price'],order['amount']])
+        Order.parse(self, [order['price'], order['amount']])
         self.type = self.order_type_map[order['type']]
         self.id = int(order['id'])
         self.order_date = str(order['datetime'])
@@ -131,8 +132,11 @@ class Balance:
         self.xbt_reserved = float(balance['xbt_reserved'])
 
     def __repr__(self):
-        return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available, self.gbp_balance,
-                self.xbt_reserved, self.xbt_available, self.xbt_balance)
+        return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
+                                                                  self.gbp_balance,
+                                                                  self.xbt_reserved, self.xbt_available,
+                                                                  self.xbt_balance)
+
 
 class Ticker:
     def __init__(self):
@@ -316,10 +320,10 @@ class CoinfloorBot:
             print('close open order {}'.format(order))
             self.close_order(order)
 
-    def estimate_market(self, type, param):
-        if type not in ['sell', 'buy']:
-            raise ValueError('invalid operation "{}"'.format(type))
-        url = self.get_url('estimate_{}_market'.format(type))
+    def estimate_market(self, market_operation, param):
+        if market_operation not in ['sell', 'buy']:
+            raise ValueError('invalid operation "{}"'.format(market_operation))
+        url = self.get_url('estimate_{}_market'.format(market_operation))
         mo = MarketOrder()
         s = self.get_session()
         r = s.post(url, data=param)
@@ -329,11 +333,10 @@ class CoinfloorBot:
         else:
             return None, r
 
-
     def post_to_slack(self, message):
         payload = {'channel': '#coinfloor',
-            'username': 'coinfloor.listener',
-            'text': message, 'icon_emoji': ':moneybag:'}
+                   'username': 'coinfloor.listener',
+                   'text': message, 'icon_emoji': ':moneybag:'}
         r = requests.post(self.slack_url, json.dumps(payload))
 
 
@@ -347,7 +350,7 @@ if __name__ == '__main__':
         print(err)
 
     cb.set_config('coinfloor.test.props')
-    url = cb.get_url('open_orders')
-    print(url)
+    test_url = cb.get_url('open_orders')
+    print(test_url)
 
     cb.estimate_market('xxx', {'qq': 1})
