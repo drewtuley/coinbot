@@ -11,6 +11,6 @@ if __name__ == '__main__':
         print ('Got {} bids, {} asks'.format(len(bids), len(asks)))
         # display top 10 bids/asks
         for ix in range(0, 10):
-            print('bid: {bid:30} ask: {ask:30}'.format(bid=bids[ix].show(), ask=asks[ix].show()))
+            print('bid: {bid:30} ask: {ask:30}'.format(bid=bids[ix], ask=asks[ix]))
         time.sleep(.1)
         loops -= 1

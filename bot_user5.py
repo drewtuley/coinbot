@@ -14,13 +14,13 @@ if __name__ == '__main__':
             my_bid.price = round(top_bid.price - (top_bid.price * 0.005), 2)  # less 5%
             if balance.gbp_available > 10:
                 my_bid.amount = round(10.0 / my_bid.price, 4)
-                print('top_bid: {} my_bid: {}'.format(top_bid.show(), my_bid.show()))
+                print('top_bid: {} my_bid: {}'.format(top_bid, my_bid))
 
                 buy = my_bid.asmap()
                 buy['ttl'] = 60
                 order, resp_json = cb.place_limit_order('buy', buy)
                 if order is not None:
-                    print(order.show())
+                    print(order)
                 else:
                     print('no buy: {}'.format(resp_json))
 
@@ -31,11 +31,11 @@ if __name__ == '__main__':
 
             my_ask.amount = round(10.0 / my_ask.price, 4)
             if my_ask.amount < balance.xbt_available:
-                print('top_ask: {} my_ask: {}'.format(top_ask.show(), my_ask.show()))
+                print('top_ask: {} my_ask: {}'.format(top_ask, my_ask))
                 sell = my_ask.asmap()
                 sell['ttl'] = 60
                 order, resp_json = cb.place_limit_order('sell', sell)
                 if order is not None:
-                    print(order.show())
+                    print(order)
                 else:
                     print('no sell: {}'.format(resp_json))

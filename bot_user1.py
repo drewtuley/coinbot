@@ -8,6 +8,7 @@ if __name__ == '__main__':
     loops = 10
     while loops > 0:
         t = cb.get_ticker()
-        print(t.show())
+        print(t)
+        cb.post_to_slack(str(t))
         time.sleep(1)
         loops -= 1
