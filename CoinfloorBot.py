@@ -172,6 +172,9 @@ class MarketOrder:
         self.total = None
         self.quantity = None
 
+    def price(self):
+        return self.total / self.quantity
+
     def parse(self, mo):
         self.total = float(mo['total'])
         self.quantity = float(mo['quantity'])

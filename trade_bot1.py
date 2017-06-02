@@ -74,11 +74,11 @@ if __name__ == "__main__":
         while waiting:
             mo, resp = cb.estimate_market('buy', {'quantity': xbt_to_trade})
             if mo is not None:
-                print('Market Buy: {}'.format(mo))
+                print('Market Buy: {mo} ({price})'.format(mo=mo, price=mo.price()))
                 if mo.total < sale_price - gbp_profit:
                     print('buy buy buy')
                     waiting = False
                 else:
-                    print('wait for price to drop to {}'.format(sale_price - gbp_profit))
+                    print('wait for price to drop to {} ({})'.format(sale_price - gbp_profit, (sale_price-gbp_profit)/xbt_to_trade))
 
             time.sleep(1)
