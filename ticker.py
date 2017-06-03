@@ -19,21 +19,22 @@ if __name__ == '__main__':
 
     prev_t = cb.get_ticker()
     
-    loop_count = 60
-    while loop_count > 0:
+    loop_wait = 15
+    while loop_wait > 0:
         t = cb.get_ticker()
-        volchange = t.volume - prev_t.volume
-        message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc})'\
-            .format(dt = t.date, bid = show_change(t.bid, prev_t.bid), ask = show_change(t.ask, prev_t.ask), 
-                last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
-        cb.post_to_slack(message)
-        prev_t = t
+        if not t.compare(prev_t):
+            volchange = t.volume - prev_t.volume
+            message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc})'\
+                .format(dt = t.date, bid = show_change(t.bid, prev_t.bid), ask = show_change(t.ask, prev_t.ask),
+                    last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
+            cb.post_to_slack(message)
+            prev_t = t
 
         with open('ticker.loop') as fd:
             for line in fd:
                 try:
-                    loop_count = int(line.strip())
+                    loop_wait = int(line.strip())
                 except ValueError:
                     pass
 
-        time.sleep(loop_count)
+        time.sleep(loop_wait)

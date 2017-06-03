@@ -59,6 +59,10 @@ if __name__ == "__main__":
                 print('Market Sell: {}'.format(mo))
                 if mo.total > cost_price + gbp_profit:
                     print('sell sell sell')
+                    mor, resp = cb.place_market_order('sell', {'quantity': xbt_to_trade})
+                    print('debug: {}'.format(resp.text))
+                    if mor is not None:
+                        print('MOR: {} resp {}'.format(mor, resp.json()))
                     waiting = False
                 else:
                     print('wait for price to go up')
@@ -71,12 +75,19 @@ if __name__ == "__main__":
         print('Last bought {} XBT for {} GBP'.format(xbt_to_trade, sale_price))
 
         waiting = True
+        prev_mo = None
         while waiting:
             mo, resp = cb.estimate_market('buy', {'quantity': xbt_to_trade})
-            if mo is not None:
+            if mo is not None and not mo.__eq__(prev_mo):
+                prev_mo = mo
                 print('Market Buy: {mo} ({price})'.format(mo=mo, price=mo.price()))
                 if mo.total < sale_price - gbp_profit:
                     print('buy buy buy')
+                    mor, resp = cb.place_market_order('buy', {'quantity': xbt_to_trade})
+                    print('debug: {}'.format(resp.text))
+                    if mor is not None:
+                        print('MOR: {} resp {}'.format(mor, resp.json()))
+
                     waiting = False
                 else:
                     print('wait for price to drop to {} ({})'.format(sale_price - gbp_profit, (sale_price-gbp_profit)/xbt_to_trade))

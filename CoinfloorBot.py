@@ -160,6 +160,12 @@ class Ticker:
         self.ask = float(tick['ask'])
         self.bid = float(tick['bid'])
 
+    def compare(self, other):
+        if other is not None and isinstance(other, Ticker):
+            return self.last == other.last and \
+                   self.high == other.high and self.low == other.low and self.vwap == other.vwap and \
+                   self.volume == other.volume and self.ask == other.ask and self.bid == other.bid
+
     def __repr__(self):
         return ('Ticker: {date} Last: {last} High: {high} Low: {low} vwap: {vwap} volume: {volume} '
                 'bid: {bid} ask: {ask}'.
@@ -182,6 +188,21 @@ class MarketOrder:
     def __repr__(self):
         return 'total: {total} quantity: {quantity}'.format(total=self.total, quantity=self.quantity)
 
+    def __eq__(self, other):
+        return other is not None and isinstance(other,
+                                                MarketOrder) and self.total == other.total and self.quantity == other.quantity
+
+
+class MarketOrderRemaining(object):
+    def __init__(self):
+        self.remaining = None
+
+    def parse(self, mor):
+        self.remaining = float(mor['remaining'])
+
+    def __repr__(self):
+        return 'remaining: {}'.format(self.remaining)
+
 
 class CoinfloorBot:
     def __init__(self):
@@ -200,12 +221,15 @@ class CoinfloorBot:
         config = ConfigParser.SafeConfigParser()
         config.read(self.config_file)
 
-        self.coinfloor_url = config.get('coinfloor', 'url')
-        self.fromccy = config.get('coinfloor', 'default_fromccy')
-        self.toccy = config.get('coinfloor', 'default_toccy')
-        self.userid = config.get('user', 'userid')
-        self.password = config.get('user', 'password')
-        self.slack_url = config.get('slack', 'url')
+        try:
+            self.coinfloor_url = config.get('coinfloor', 'url')
+            self.fromccy = config.get('coinfloor', 'default_fromccy')
+            self.toccy = config.get('coinfloor', 'default_toccy')
+            self.userid = config.get('user', 'userid')
+            self.password = config.get('user', 'password')
+            self.slack_url = config.get('slack', 'url')
+        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as var:
+            print(var)
 
     def set_ccy(self, fromccy, toccy):
         self.fromccy = fromccy
@@ -336,6 +360,19 @@ class CoinfloorBot:
         else:
             return None, r
 
+    def place_market_order(self, market_operation, param):
+        if market_operation not in ['sell', 'buy']:
+            raise ValueError('invalid operation "{}"'.format(market_operation))
+        url = self.get_url('{}_market'.format(market_operation))
+        mor = MarketOrderRemaining()
+        s = self.get_session()
+        r = s.post(url, data=param)
+        if r.status_code == 200:
+            mor.parse(r.json())
+            return mor, r
+        else:
+            return None, r
+
     def post_to_slack(self, message):
         payload = {'channel': '#coinfloor',
                    'username': 'coinfloor.listener',
@@ -349,7 +386,7 @@ if __name__ == '__main__':
     cb = CoinfloorBot()
     try:
         cb.get_url('open_orders')
-    except Exception, err:
+    except Exception as err:
         print(err)
 
     cb.set_config('coinfloor.test.props')
