@@ -213,6 +213,7 @@ class CoinfloorBot:
         self.userid = None
         self.password = None
         self.slack_url = None
+        self.slack_username = 'coinfloor.poster'
 
         self.session = None
 
@@ -373,10 +374,16 @@ class CoinfloorBot:
         else:
             return None, r
 
-    def post_to_slack(self, message):
-        payload = {'channel': '#coinfloor',
-                   'username': 'coinfloor.listener',
-                   'text': message, 'icon_emoji': ':moneybag:'}
+    def post_to_slack(self, message, params={}):
+        payload = params
+        if 'icon_emoji' not in payload:
+            payload['icon_emoji'] = ':moneybag:'
+        if 'username' not in payload:
+            payload['username'] = self.slack_username
+        if 'channel' not in payload:
+            payload['channel'] = '#coinfloor'
+        payload['text'] = message
+
         r = requests.post(self.slack_url, json.dumps(payload))
 
 
