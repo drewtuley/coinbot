@@ -16,10 +16,10 @@ class UserTransaction:
         self.tid = None
         self.raw_type = None
         self.mapped_type = None
-        self.gbp = None
-        self.xbt = None
+        self.gbp = 0.0
+        self.xbt = 0.0
         self.xbt_gbp = 0.0
-        self.fee = None
+        self.fee = 0.0
         self.order_id = None
 
     def parse(self, txn):
@@ -36,10 +36,17 @@ class UserTransaction:
             pass
         self.fee = float(txn['fee'])
 
+    def to_json(self):
+        return json.dumps({'datetime': self.tf_date, 'id': self.tid, 'type': self.raw_type,
+                           'gbp': self.gbp, 'xbt': self.xbt, 'xbt_gbp': self.xbt_gbp, 'order_id': self.order_id,
+                           'fee': self.fee})
+
     def __repr__(self):
-        return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {:7.2f}  - id {:18}'.format(self.tf_date, self.mapped_type,
-                                                                                  self.gbp, self.xbt, self.xbt_gbp,
-                                                                                  self.tid)
+        return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {:7.2f}  - id {:18}'.format(self.tf_date,
+                                                                                                self.mapped_type,
+                                                                                                self.gbp, self.xbt,
+                                                                                                self.xbt_gbp,
+                                                                                                self.tid)
 
 
 class Transaction:
@@ -57,6 +64,9 @@ class Transaction:
         self.price = float(txn['price'])
         self.tid = int(txn['tid'])
         self.tf_date = utils.convert_epoch(int(txn['date']))
+
+    def to_json(self):
+        return json.dumps({'amount': self.amount, 'price': self.price, 'tid': self.tid, 'date': self.tf_date})
 
     def __repr__(self):
         return '{date} amount: {amount:10} price: {price} (value: {value:10}) ' \
@@ -79,6 +89,9 @@ class Order:
         self.price = float(order[0])
         self.amount = float(order[1])
 
+    def to_json(self):
+        return json.dumps([self.price, self.amount])
+
     def __repr__(self):
         return 'price: {price} amount: {amount}'.format(price=self.price, amount=self.amount)
 
@@ -97,12 +110,17 @@ class OpenOrder(Order):
 
     def parse(self, order):
         Order.parse(self, [order['price'], order['amount']])
-        self.type = self.order_type_map[order['type']]
+        self.raw_type = order['type']
+        self.type = self.order_type_map[self.raw_type]
         self.id = int(order['id'])
         self.order_date = str(order['datetime'])
 
     def get_id(self):
         return self.id
+
+    def to_json(self):
+        return json.dumps({'type': self.raw_type, 'id': self.id,
+                           'datetime': self.order_date, 'price': self.price, 'amount': self.amount})
 
     def __repr__(self):
         return 'date: {date} {type:4} - price: {price} ' \
@@ -132,8 +150,9 @@ class Balance:
         self.xbt_reserved = float(balance['xbt_reserved'])
 
     def to_json(self):
-        return json.dumps({'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
-            'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved })
+        return json.dumps(
+            {'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
+             'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved})
 
     def __repr__(self):
         return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
@@ -180,8 +199,9 @@ class Ticker:
                        low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))
 
     def to_json(self):
-        return json.dumps({'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap, 
-                'volume': self.volume, 'bid': self.bid, 'ask': self.ask})
+        return json.dumps({'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap,
+                           'volume': self.volume, 'bid': self.bid, 'ask': self.ask})
+
 
 class MarketOrder:
     def __init__(self):
@@ -194,6 +214,9 @@ class MarketOrder:
     def parse(self, mo):
         self.total = float(mo['total'])
         self.quantity = float(mo['quantity'])
+
+    def to_json(self):
+        return json.dumps({'total': self.total, 'quantity': self.quantity})
 
     def __repr__(self):
         return 'total: {total} quantity: {quantity}'.format(total=self.total, quantity=self.quantity)
@@ -209,6 +232,9 @@ class MarketOrderRemaining(object):
 
     def parse(self, mor):
         self.remaining = float(mor['remaining'])
+
+    def to_json(self):
+        json.dumps({'remaining': self.remaining})
 
     def __repr__(self):
         return 'remaining: {}'.format(self.remaining)
@@ -236,8 +262,9 @@ class CoinfloorBot:
         self.session = None
 
     def __dir__(self):
-        return ['config_file', 'coinfloor_url', 'fromccy', 'toccy', 'userid', 'password', 'slack_do_post', 'slack_url', 'slack_username',
-           'allow_market_order'] 
+        return ['config_file', 'coinfloor_url', 'fromccy', 'toccy', 'userid', 'password', 'slack_do_post', 'slack_url',
+                'slack_username',
+                'allow_market_order']
 
     def set_config(self, config_file):
         self.config_file = config_file
@@ -253,14 +280,13 @@ class CoinfloorBot:
             self.slack_url = config.get('slack', 'url')
             self.slack_do_post = bool(config.get('slack', 'do_post') == 'True')
 
-            self.xbt_to_trade = float(config.get('trade','xbt_to_trade'))
-            self.min_profit_pc = float(config.get('trade','min_profit_pc'))
-            self.max_loss_pc = float(config.get('trade','max_loss_pc'))
+            self.xbt_to_trade = float(config.get('trade', 'xbt_to_trade'))
+            self.min_profit_pc = float(config.get('trade', 'min_profit_pc'))
+            self.max_loss_pc = float(config.get('trade', 'max_loss_pc'))
 
             self.allow_market_order = bool(config.get('control', 'allow_market_order') == 'True')
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as var:
             print(var)
-
 
     def set_ccy(self, fromccy, toccy):
         self.fromccy = fromccy
@@ -400,8 +426,6 @@ class CoinfloorBot:
     def place_market_order(self, market_operation, param):
         if market_operation not in ['sell', 'buy']:
             raise ValueError('invalid operation "{}"'.format(market_operation))
-        print('amo {}'.format(self.allow_market_order))
-        print('amo {}'.format(self.allow_market_order == True))
         if self.allow_market_order:
             url = self.get_url('{}_market'.format(market_operation))
             mor = MarketOrderRemaining()

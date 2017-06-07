@@ -1,3 +1,4 @@
+import sys
 import time
 
 from CoinfloorBot import CoinfloorBot
@@ -43,7 +44,10 @@ def calc_sale_price(xbt_amount, txns):
 
 if __name__ == "__main__":
     cb = CoinfloorBot()
-    cb.set_config('coinfloor.props')
+    if len(sys.argv) > 1:
+        cb.set_config(sys.argv[1])
+    else:
+        cb.set_config('coinfloor.props')
 
     cb.slack_username = 'trader1'
     xbt_to_trade = cb.xbt_to_trade
@@ -72,9 +76,9 @@ if __name__ == "__main__":
                 msg = 'Market Sell: {} ({}) [p/l: {} {:2.2%}]'.format(mo, mo.price(), pl, pl_pc)
                 print(msg)
                 cb.post_to_slack(msg)
-                if mo.total > cost_price + (cost_price*min_profit_pc/100):
+                if mo.total > cost_price + (cost_price * min_profit_pc):
                     print('in profit')
-                    if sell_actual: 
+                    if sell_actual:
                         mor, resp = cb.place_market_order('sell', {'quantity': xbt_to_trade})
 
                         print('debug: {}'.format(resp.text))
@@ -88,9 +92,11 @@ if __name__ == "__main__":
                 elif mo.total < cost_price:
                     loss = mo.total - cost_price
                     loss_pc = loss / cost_price
-                    print('potential loss [p/l {loss} ({loss_pc:2.1%}) max={max:2.1%}]'.format(loss =loss, loss_pc=loss_pc, max=max_loss_pc))
+                    print(
+                    'potential loss [p/l {loss} ({loss_pc:2.1%}) max={max:2.1%}]'.format(loss=loss, loss_pc=loss_pc,
+                                                                                         max=max_loss_pc))
                     if loss_pc < max_loss_pc:
-                        msg = 'time to cut losses: [p/l: {pl} ({plpc:2.1%})]'.format(pl=loss, plpc = loss_pc)
+                        msg = 'time to cut losses: [p/l: {pl} ({plpc:2.1%})]'.format(pl=loss, plpc=loss_pc)
                         print(msg)
                         cb.post_to_slack(msg)
                         if sell_actual:
@@ -105,7 +111,7 @@ if __name__ == "__main__":
 
                             waiting = False
                 else:
-                    min_sale_price = cost_price + (cost_price * min_profit_pc/100)
+                    min_sale_price = cost_price + (cost_price * min_profit_pc)
                     msg = 'wait for price to go up {} ({})'.format(min_sale_price,
                                                                    (min_sale_price) / xbt_to_trade)
                     print(msg)
@@ -132,7 +138,7 @@ if __name__ == "__main__":
                                                                                   plpc=pl / sale_price)
                 print(msg)
                 cb.post_to_slack(msg)
-                if mo.total < sale_price - (sale_price * min_profit_pc /100):
+                if mo.total < sale_price - (sale_price * min_profit_pc):
                     print('time to buy')
                     if buy_actual:
                         mor, resp = cb.place_market_order('buy', {'quantity': xbt_to_trade})
@@ -145,7 +151,7 @@ if __name__ == "__main__":
 
                         waiting = False
                 else:
-                    min_buy_price = sale_price - (sale_price * min_profit_pc /100)
+                    min_buy_price = sale_price - (sale_price * min_profit_pc)
                     msg = 'wait for price to drop to {} ({})'.format(min_buy_price, (min_buy_price) / xbt_to_trade)
                     print(msg)
                     cb.post_to_slack(msg)
