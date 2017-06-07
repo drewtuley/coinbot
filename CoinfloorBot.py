@@ -18,7 +18,7 @@ class UserTransaction:
         self.mapped_type = None
         self.gbp = None
         self.xbt = None
-        self.xbt_gbp = None
+        self.xbt_gbp = 0.0
         self.fee = None
         self.order_id = None
 
@@ -37,7 +37,7 @@ class UserTransaction:
         self.fee = float(txn['fee'])
 
     def __repr__(self):
-        return 'date: {} type: {:20} GBP: {:7}  XBT: {:7} @ {:7}  - id {}'.format(self.tf_date, self.mapped_type,
+        return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {:7.2f}  - id {:18}'.format(self.tf_date, self.mapped_type,
                                                                                   self.gbp, self.xbt, self.xbt_gbp,
                                                                                   self.tid)
 
@@ -131,6 +131,10 @@ class Balance:
         self.xbt_balance = float(balance['xbt_balance'])
         self.xbt_reserved = float(balance['xbt_reserved'])
 
+    def to_json(self):
+        return json.dumps({'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
+            'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved })
+
     def __repr__(self):
         return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
                                                                   self.gbp_balance,
@@ -152,13 +156,16 @@ class Ticker:
     def parse(self, resp):
         self.date = resp.headers['date']
         tick = resp.json()
-        self.last = float(tick['last'])
-        self.high = float(tick['high'])
-        self.low = float(tick['low'])
-        self.vwap = float(tick['vwap'])
-        self.volume = float(tick['volume'])
-        self.ask = float(tick['ask'])
-        self.bid = float(tick['bid'])
+        try:
+            self.last = float(tick['last'])
+            self.high = float(tick['high'])
+            self.low = float(tick['low'])
+            self.vwap = float(tick['vwap'])
+            self.volume = float(tick['volume'])
+            self.ask = float(tick['ask'])
+            self.bid = float(tick['bid'])
+        except (TypeError, KeyError) as err:
+            pass
 
     def compare(self, other):
         if other is not None and isinstance(other, Ticker):
@@ -172,6 +179,9 @@ class Ticker:
                 format(date=self.date, last=self.last, high=self.high,
                        low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))
 
+    def to_json(self):
+        return json.dumps({'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap, 
+                'volume': self.volume, 'bid': self.bid, 'ask': self.ask})
 
 class MarketOrder:
     def __init__(self):
@@ -204,6 +214,11 @@ class MarketOrderRemaining(object):
         return 'remaining: {}'.format(self.remaining)
 
 
+class Error(object):
+    def __init__(self, text):
+        self.text = text
+
+
 class CoinfloorBot:
     def __init__(self):
         self.config_file = None
@@ -212,10 +227,17 @@ class CoinfloorBot:
         self.toccy = None
         self.userid = None
         self.password = None
+        self.slack_do_post = False
         self.slack_url = None
         self.slack_username = 'coinfloor.poster'
 
+        self.allow_market_order = False
+
         self.session = None
+
+    def __dir__(self):
+        return ['config_file', 'coinfloor_url', 'fromccy', 'toccy', 'userid', 'password', 'slack_do_post', 'slack_url', 'slack_username',
+           'allow_market_order'] 
 
     def set_config(self, config_file):
         self.config_file = config_file
@@ -229,8 +251,16 @@ class CoinfloorBot:
             self.userid = config.get('user', 'userid')
             self.password = config.get('user', 'password')
             self.slack_url = config.get('slack', 'url')
+            self.slack_do_post = bool(config.get('slack', 'do_post') == 'True')
+
+            self.xbt_to_trade = float(config.get('trade','xbt_to_trade'))
+            self.min_profit_pc = float(config.get('trade','min_profit_pc'))
+            self.max_loss_pc = float(config.get('trade','max_loss_pc'))
+
+            self.allow_market_order = bool(config.get('control', 'allow_market_order') == 'True')
         except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as var:
             print(var)
+
 
     def set_ccy(self, fromccy, toccy):
         self.fromccy = fromccy
@@ -361,30 +391,43 @@ class CoinfloorBot:
         else:
             return None, r
 
+    def allow_market_orders(self):
+        self.allow_market_order = True
+
+    def block_market_orders(self):
+        self.allow_market_order = False
+
     def place_market_order(self, market_operation, param):
         if market_operation not in ['sell', 'buy']:
             raise ValueError('invalid operation "{}"'.format(market_operation))
-        url = self.get_url('{}_market'.format(market_operation))
-        mor = MarketOrderRemaining()
-        s = self.get_session()
-        r = s.post(url, data=param)
-        if r.status_code == 200:
-            mor.parse(r.json())
-            return mor, r
+        print('amo {}'.format(self.allow_market_order))
+        print('amo {}'.format(self.allow_market_order == True))
+        if self.allow_market_order:
+            url = self.get_url('{}_market'.format(market_operation))
+            mor = MarketOrderRemaining()
+            s = self.get_session()
+            r = s.post(url, data=param)
+            if r.status_code == 200:
+                mor.parse(r.json())
+                return mor, r
+            else:
+                return None, r
         else:
-            return None, r
+            e = Error('market orders blocked')
+            return None, e
 
     def post_to_slack(self, message, params={}):
         payload = params
-        if 'icon_emoji' not in payload:
-            payload['icon_emoji'] = ':moneybag:'
-        if 'username' not in payload:
-            payload['username'] = self.slack_username
-        if 'channel' not in payload:
-            payload['channel'] = '#coinfloor'
-        payload['text'] = message
+        if self.slack_do_post:
+            if 'icon_emoji' not in payload:
+                payload['icon_emoji'] = ':moneybag:'
+            if 'username' not in payload:
+                payload['username'] = self.slack_username
+            if 'channel' not in payload:
+                payload['channel'] = '#coinfloor'
+            payload['text'] = message
 
-        r = requests.post(self.slack_url, json.dumps(payload))
+            r = requests.post(self.slack_url, json.dumps(payload))
 
 
 if __name__ == '__main__':

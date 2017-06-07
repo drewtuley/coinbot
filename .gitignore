@@ -1,6 +1,6 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea/*
 *.pyc
-coinfloor.props
+*.props
 nohup.out
 ticker.loop
