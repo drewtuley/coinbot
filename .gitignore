@@ -4,3 +4,6 @@
 *.props
 nohup.out
 ticker.loop
+coinfloor.db 
+data/*
+hello.*
