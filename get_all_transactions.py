@@ -15,8 +15,8 @@ if __name__ == '__main__':
     for txn in txns:
         print(txn)
 
-    session = cb.get_db_session()
-    for txn in txns:
+    session = cb.get_db_session(echo=False)
+    for txn in sorted(txns, key = lambda Transaction: Transaction.tid):
         txn_exists = session.query(Transaction).filter(Transaction.tid == txn.tid).first()
         if txn_exists is None:
             session.add(txn)

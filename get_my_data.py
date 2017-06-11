@@ -28,8 +28,12 @@ if __name__ == '__main__':
         xbt_balance -= txn.xbt
         print('{txn} GBP: {gbp:10.2f} XBT: {xbt:8.4f}'.format(txn=txn, gbp=gbp_balance, xbt=xbt_balance))
 
-    session = cb.get_db_session()
-    session.add_all(user_txns)
+    session = cb.get_db_session(echo=False)
+    for txn in sorted(user_txns, key=lambda UserTransaction: UserTransaction.tid):
+        txn_exists = session.query(UserTransaction).filter_by(tid=txn.tid).first()
+        if txn_exists is None:
+            session.add(txn)
+
     session.commit()
 
     session.add(balance)
