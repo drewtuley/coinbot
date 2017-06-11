@@ -1,5 +1,7 @@
-from CoinfloorBot import CoinfloorBot
 import sys
+
+from CoinfloorBot import CoinfloorBot
+from CoinfloorBot import UserTransaction
 
 if __name__ == '__main__':
     cb = CoinfloorBot()
@@ -7,7 +9,6 @@ if __name__ == '__main__':
 
     balance = cb.get_balance()
     print('My Balance: \n{}'.format(balance))
-
 
     open_orders = cb.get_open_orders()
     print('My Open Orders:')
@@ -26,3 +27,14 @@ if __name__ == '__main__':
         gbp_balance -= txn.gbp
         xbt_balance -= txn.xbt
         print('{txn} GBP: {gbp:10.2f} XBT: {xbt:8.4f}'.format(txn=txn, gbp=gbp_balance, xbt=xbt_balance))
+
+    session = cb.get_db_session()
+    session.add_all(user_txns)
+    session.commit()
+
+    session.add(balance)
+    print(session.new)
+    session.commit()
+
+    our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
+    print(our_txn)

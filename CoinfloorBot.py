@@ -2,28 +2,37 @@ from __future__ import print_function
 
 import ConfigParser
 import json
+from datetime import datetime
 
 import requests
+from sqlalchemy import Column, Integer, String, Float, DateTime, Sequence
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 import utils
 
+Base = declarative_base()
 
-class UserTransaction:
+
+class UserTransaction(Base):
+    __tablename__ = 'ut_user_transaction'
+
     txn_type_map = {0: 'deposit', 1: 'withdrawal', 2: 'market trade'}
 
-    def __init__(self):
-        self.tf_date = None
-        self.tid = None
-        self.raw_type = None
-        self.mapped_type = None
-        self.gbp = 0.0
-        self.xbt = 0.0
-        self.xbt_gbp = 0.0
-        self.fee = 0.0
-        self.order_id = None
+    id = Column(Integer, Sequence('user_transaction_id_seq'), primary_key=True)
+    tf_date = Column(DateTime)
+    tid = Column(Integer)
+    raw_type = Column(Integer)
+    mapped_type = Column(String)
+    gbp = Column(Float)
+    xbt = Column(Float)
+    xbt_gbp = Column(Float)
+    fee = Column(Float)
+    order_id = Column(Integer)
 
     def parse(self, txn):
-        self.tf_date = str(txn['datetime'])
+        self.tf_date = datetime.strptime(txn['datetime'], '%Y-%m-%d %H:%M:%S')
         self.tid = int(txn['id'])
         self.raw_type = int(txn['type'])
         self.mapped_type = self.txn_type_map[self.raw_type]
@@ -37,9 +46,9 @@ class UserTransaction:
         self.fee = float(txn['fee'])
 
     def to_json(self):
-        return json.dumps({'datetime': self.tf_date, 'id': self.tid, 'type': self.raw_type,
-                           'gbp': self.gbp, 'xbt': self.xbt, 'xbt_gbp': self.xbt_gbp, 'order_id': self.order_id,
-                           'fee': self.fee})
+        return {'datetime': str(self.tf_date), 'id': self.tid, 'type': self.raw_type,
+                'gbp': self.gbp, 'xbt': self.xbt, 'xbt_gbp': self.xbt_gbp, 'order_id': self.order_id,
+                'fee': self.fee}
 
     def __repr__(self):
         return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {:7.2f}  - id {:18}'.format(self.tf_date,
@@ -49,12 +58,14 @@ class UserTransaction:
                                                                                                 self.tid)
 
 
-class Transaction:
-    def __init__(self):
-        self.tf_date = None
-        self.tid = None
-        self.price = None
-        self.amount = None
+class Transaction(Base):
+    __tablename__ = 'txn_transaction'
+
+    id = Column(Integer, Sequence('transaction_id_seq'), primary_key=True)
+    tf_date = Column(DateTime)
+    tid = Column(Integer)
+    price = Column(Float)
+    amount = Column(Float)
 
     def get_value(self):
         return self.price * self.amount
@@ -63,10 +74,10 @@ class Transaction:
         self.amount = float(txn['amount'])
         self.price = float(txn['price'])
         self.tid = int(txn['tid'])
-        self.tf_date = utils.convert_epoch(int(txn['date']))
+        self.tf_date = datetime.strptime(utils.convert_epoch_norm(int(txn['date'])), '%Y-%m-%d %H:%M:%S')
 
     def to_json(self):
-        return json.dumps({'amount': self.amount, 'price': self.price, 'tid': self.tid, 'date': self.tf_date})
+        return {'amount': self.amount, 'price': self.price, 'tid': self.tid, 'date': self.tf_date}
 
     def __repr__(self):
         return '{date} amount: {amount:10} price: {price} (value: {value:10}) ' \
@@ -77,10 +88,12 @@ class Transaction:
                                    tid=self.tid)
 
 
-class Order:
-    def __init__(self):
-        self.price = None
-        self.amount = None
+class Order(Base):
+    __tablename__ = 'ord_order'
+
+    id = Column(Integer, Sequence('order_id_seq'), primary_key=True)
+    price = Column(Float)
+    amount = Column(Float)
 
     def total(self):
         return float(self.price * self.amount)
@@ -99,47 +112,54 @@ class Order:
         return {'price': self.price, 'amount': self.amount}
 
 
-class OpenOrder(Order):
+class OpenOrder(Base):
+    __tablename__ = 'opo_open_order'
+
     order_type_map = {0: 'buy', 1: 'sell'}
 
-    def __init__(self):
-        Order.__init__(self)
-        self.type = None
-        self.id = None
-        self.order_date = None
+    id = Column(Integer, Sequence('open_order_id_seq'), primary_key=True)
+    price = Column(Float)
+    amount = Column(Float)
+    raw_type = Column(Integer)
+    type = Column(String)
+    order_id = Column(Integer)
+    order_date = Column(DateTime)
 
     def parse(self, order):
-        Order.parse(self, [order['price'], order['amount']])
+        self.price = order['price']
+        self.amount = order['amount']
         self.raw_type = order['type']
         self.type = self.order_type_map[self.raw_type]
-        self.id = int(order['id'])
+        self.order_id = int(order['id'])
         self.order_date = str(order['datetime'])
 
     def get_id(self):
         return self.id
 
     def to_json(self):
-        return json.dumps({'type': self.raw_type, 'id': self.id,
-                           'datetime': self.order_date, 'price': self.price, 'amount': self.amount})
+        return {'type': self.raw_type, 'id': self.order_idid,
+                'datetime': self.order_date, 'price': self.price, 'amount': self.amount}
 
     def __repr__(self):
         return 'date: {date} {type:4} - price: {price} ' \
                'amount: {amount} total: {total} ({id})'.format(price=self.price,
                                                                amount=self.amount,
                                                                type=self.type,
-                                                               id=self.id,
+                                                               id=self.order_id,
                                                                date=self.order_date,
                                                                total=self.total())
 
 
-class Balance:
-    def __init__(self):
-        self.gbp_balance = None
-        self.gbp_available = None
-        self.gbp_reserved = None
-        self.xbt_balance = None
-        self.xbt_available = None
-        self.xbt_reserved = None
+class Balance(Base):
+    __tablename__ = 'bal_balance'
+
+    id = Column(Integer, Sequence('balance_id_seq'), primary_key=True)
+    gbp_balance = Column(Float)
+    gbp_available = Column(Float)
+    gbp_reserved = Column(Float)
+    xbt_balance = Column(Float)
+    xbt_available = Column(Float)
+    xbt_reserved = Column(Float)
 
     def parse(self, balance):
         self.gbp_available = float(balance['gbp_available'])
@@ -150,27 +170,30 @@ class Balance:
         self.xbt_reserved = float(balance['xbt_reserved'])
 
     def to_json(self):
-        return json.dumps(
-            {'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
-             'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved})
-
-    def __repr__(self):
-        return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
-                                                                  self.gbp_balance,
-                                                                  self.xbt_reserved, self.xbt_available,
-                                                                  self.xbt_balance)
+        return
+        {'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
+         'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved}
 
 
-class Ticker:
-    def __init__(self):
-        self.last = None
-        self.high = None
-        self.low = None
-        self.vwap = None
-        self.volume = None
-        self.bid = None
-        self.ask = None
-        self.date = None
+def __repr__(self):
+    return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
+                                                              self.gbp_balance,
+                                                              self.xbt_reserved, self.xbt_available,
+                                                              self.xbt_balance)
+
+
+class Ticker(Base):
+    __tablename__ = 'tik_ticker'
+
+    id = Column(Integer, Sequence('ticker_id_seq'), primary_key=True)
+    last = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    vwap = Column(Float)
+    volume = Column(Float)
+    bid = Column(Float)
+    ask = Column(Float)
+    date = Column(DateTime)
 
     def parse(self, resp):
         self.date = resp.headers['date']
@@ -199,14 +222,16 @@ class Ticker:
                        low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))
 
     def to_json(self):
-        return json.dumps({'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap,
-                           'volume': self.volume, 'bid': self.bid, 'ask': self.ask})
+        return {'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap,
+                'volume': self.volume, 'bid': self.bid, 'ask': self.ask}
 
 
-class MarketOrder:
-    def __init__(self):
-        self.total = None
-        self.quantity = None
+class MarketOrder(Base):
+    __tablename__ = 'mor_market_order'
+
+    id = Column(Integer, Sequence('market_order_id_seq'), primary_key=True)
+    total = Column(Float)
+    quantity = Column(Float)
 
     def price(self):
         return self.total / self.quantity
@@ -216,7 +241,7 @@ class MarketOrder:
         self.quantity = float(mo['quantity'])
 
     def to_json(self):
-        return json.dumps({'total': self.total, 'quantity': self.quantity})
+        return {'total': self.total, 'quantity': self.quantity}
 
     def __repr__(self):
         return 'total: {total} quantity: {quantity}'.format(total=self.total, quantity=self.quantity)
@@ -452,6 +477,15 @@ class CoinfloorBot:
             payload['text'] = message
 
             r = requests.post(self.slack_url, json.dumps(payload))
+
+    def get_db_session(self):
+        engine = create_engine('sqlite:///coinfloor.db', echo=True)
+        # print(UserTransaction.__table__)
+        # print(engine)
+        Base.metadata.create_all(engine)
+
+        Session = sessionmaker(bind=engine)
+        return Session()
 
 
 if __name__ == '__main__':

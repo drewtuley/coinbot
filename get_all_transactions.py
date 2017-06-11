@@ -1,6 +1,7 @@
 import sys
 
 from CoinfloorBot import CoinfloorBot
+from CoinfloorBot import Transaction
 
 if __name__ == '__main__':
     cb = CoinfloorBot()
@@ -13,3 +14,10 @@ if __name__ == '__main__':
     txns = cb.get_transactions(time_value=period)
     for txn in txns:
         print(txn)
+
+    session = cb.get_db_session()
+    for txn in txns:
+        txn_exists = session.query(Transaction).filter(Transaction.tid == txn.tid).first()
+        if txn_exists is None:
+            session.add(txn)
+    session.commit()
