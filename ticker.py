@@ -21,14 +21,17 @@ if __name__ == '__main__':
     
     loop_wait = 15
     while loop_wait > 0:
-        t = cb.get_ticker()
-        if not t.compare(prev_t):
-            volchange = t.volume - prev_t.volume
-            message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc})'\
-                .format(dt = t.date, bid = show_change(t.bid, prev_t.bid), ask = show_change(t.ask, prev_t.ask),
-                    last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
-            cb.post_to_slack(message)
-            prev_t = t
+        try:
+            t = cb.get_ticker()
+            if t is not None and not t.compare(prev_t):
+                volchange = t.volume - prev_t.volume
+                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc})'\
+                    .format(dt = t.date, bid = show_change(t.bid, prev_t.bid), ask = show_change(t.ask, prev_t.ask),
+                        last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
+                cb.post_to_slack(message)
+                prev_t = t
+        except Exception:
+            pass
 
         with open('ticker.loop') as fd:
             for line in fd:

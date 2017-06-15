@@ -51,10 +51,14 @@ class UserTransaction(Base):
                 'fee': self.fee}
 
     def __repr__(self):
-        return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {:7.2f}  - id {:18}'.format(self.tf_date,
+        if self.xbt_gbp is None:
+            xchng='       '
+        else:
+            xchng='{:7.2f}'.format(self.xbt_gbp)
+        return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {}  - id {:18}'.format(self.tf_date,
                                                                                                 self.mapped_type,
                                                                                                 self.gbp, self.xbt,
-                                                                                                self.xbt_gbp,
+                                                                                                xchng,
                                                                                                 self.tid)
 
 
@@ -175,8 +179,8 @@ class Balance(Base):
          'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved}
 
 
-def __repr__(self):
-    return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
+    def __repr__(self):
+        return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
                                                               self.gbp_balance,
                                                               self.xbt_reserved, self.xbt_available,
                                                               self.xbt_balance)
@@ -478,8 +482,8 @@ class CoinfloorBot:
 
             r = requests.post(self.slack_url, json.dumps(payload))
 
-    def get_db_session(self):
-        engine = create_engine('sqlite:///coinfloor.db', echo=True)
+    def get_db_session(self, echo=True):
+        engine = create_engine('sqlite:///coinfloor.db', echo=echo)
         # print(UserTransaction.__table__)
         # print(engine)
         Base.metadata.create_all(engine)
