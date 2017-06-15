@@ -1,6 +1,7 @@
 import time
 
 from CoinfloorBot import CoinfloorBot
+from CoinfloorBot import Ticker
 
 
 def show_change(curr_val, prev_val):
@@ -35,7 +36,8 @@ if __name__ == '__main__':
                 session.add(t)
                 session.commit()
                 prev_t = t
-        except Exception:
+        except Exception as err:
+            print(err)
             pass
 
         with open('ticker.loop') as fd:
