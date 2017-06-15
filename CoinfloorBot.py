@@ -52,14 +52,14 @@ class UserTransaction(Base):
 
     def __repr__(self):
         if self.xbt_gbp is None:
-            xchng='       '
+            xchng = '{:7s}'.format(' ')
         else:
-            xchng='{:7.2f}'.format(self.xbt_gbp)
+            xchng = '{:7.2f}'.format(self.xbt_gbp)
         return 'date: {} type: {:15} GBP: {:10.2f}  XBT: {:10.4f} @ {}  - id {:18}'.format(self.tf_date,
-                                                                                                self.mapped_type,
-                                                                                                self.gbp, self.xbt,
-                                                                                                xchng,
-                                                                                                self.tid)
+                                                                                           self.mapped_type,
+                                                                                           self.gbp, self.xbt,
+                                                                                           xchng,
+                                                                                           self.tid)
 
 
 class Transaction(Base):
@@ -178,12 +178,11 @@ class Balance(Base):
         {'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
          'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved}
 
-
     def __repr__(self):
         return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
-                                                              self.gbp_balance,
-                                                              self.xbt_reserved, self.xbt_available,
-                                                              self.xbt_balance)
+                                                                  self.gbp_balance,
+                                                                  self.xbt_reserved, self.xbt_available,
+                                                                  self.xbt_balance)
 
 
 class Ticker(Base):
