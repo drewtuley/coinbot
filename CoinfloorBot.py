@@ -199,7 +199,8 @@ class Ticker(Base):
     date = Column(DateTime)
 
     def parse(self, resp):
-        self.date = resp.headers['date']
+        self.date = datetime.strptime(resp.headers['date'], '%a, %d %b %Y %H:%M:%S %Z')
+
         tick = resp.json()
         try:
             self.last = float(tick['last'])
