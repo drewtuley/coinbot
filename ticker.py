@@ -27,11 +27,18 @@ if __name__ == '__main__':
     while loop_wait > 0:
         try:
             t = cb.get_ticker()
+            bal = cb.get_balance()
             if t is not None and not t.compare(prev_t):
                 volchange = t.volume - prev_t.volume
-                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc})' \
+                if bal is not None:
+                    val = t.bid * bal.xbt_balance
+                    valdiff = val - (prev_t.bid * bal.xbt_balance)
+                else:
+                    val = 0
+                    valdiff = 0
+                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc}) val:({val} {valdiff:+3.2f})' \
                     .format(dt=t.date, bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
-                            last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
+                            last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange, val=val, valdiff=valdiff)
                 cb.post_to_slack(message)
                 session.add(t)
                 session.commit()
