@@ -7,6 +7,8 @@ if __name__ == '__main__':
     cb = CoinfloorBot()
     cb.set_config('coinfloor.props')
 
+    current_xbt_price = None
+
     balance = cb.get_balance()
     print('My Balance: \n{}'.format(balance))
 
@@ -15,6 +17,7 @@ if __name__ == '__main__':
         if mo is not None:
             print('GBP cash valuation: {} @ {}'.format(mo, mo.price()))
             print('Total Cash Valuation: {}'.format(mo.total + balance.gbp_balance))
+            current_xbt_price = mo.price()
         else:
             print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
 
@@ -33,9 +36,12 @@ if __name__ == '__main__':
     gbp_balance = balance.gbp_balance
     xbt_balance = balance.xbt_balance
     for txn in user_txns[:txns_to_show]:
-        gbp_balance -= txn.gbp
-        xbt_balance -= txn.xbt
-        print('{txn} GBP: {gbp:10.2f} XBT: {xbt:8.4f}'.format(txn=txn, gbp=gbp_balance, xbt=xbt_balance))
+        if current_xbt_price is not None:
+            val = current_xbt_price * txn.xbt
+            pnl = val + txn.gbp
+        else:
+            val = None
+        print('{txn} Val:{val:8.2f} PnL:{pnl:8.2f}'.format(txn=txn, val=val, pnl=pnl))
 
     session = cb.get_db_session(echo=False)
     for txn in sorted(user_txns, key=lambda UserTransaction: UserTransaction.tid):
@@ -46,8 +52,8 @@ if __name__ == '__main__':
     session.commit()
 
     session.add(balance)
-    print(session.new)
+   # print(session.new)
     session.commit()
 
-    our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
-    print(our_txn)
+    #our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
+    #print(our_txn)
