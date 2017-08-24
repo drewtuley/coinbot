@@ -36,7 +36,7 @@ if __name__ == '__main__':
                 else:
                     val = 0
                     valdiff = 0
-                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol} ({vc}) val:({val} {valdiff:+3.2f})' \
+                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f}) val:({val} {valdiff:+3.2f})' \
                     .format(dt=t.date, bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
                             last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange, val=val, valdiff=valdiff)
                 cb.post_to_slack(message)
