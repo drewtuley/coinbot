@@ -8,12 +8,16 @@ if __name__ == '__main__':
     cb.set_config('coinfloor.props')
     session = cb.get_db_session(echo=False)
 
+    tick = cb.get_ticker()
+    print(tick)
+
     current_xbt_price = None
 
     balance = cb.get_balance()
     print('My Balance: \n{}'.format(balance))
     session.add(balance)        # update to db
     session.commit()
+
 
     if balance.xbt_available > 0:
         mo, resp = cb.estimate_market('sell', {'quantity': balance.xbt_available})
