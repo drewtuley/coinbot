@@ -2,6 +2,7 @@ import time
 import requests
 import re
 import os
+import signal
 from CoinfloorBot import CoinfloorBot
 from CoinfloorBot import Ticker
 from expiringdict import ExpiringDict
@@ -27,8 +28,16 @@ def get_my_ip():
             return (m.group())
 
 
+def usr_handler(signum, frame):
+    cb.post_to_slack('user interrupt {}'.format(signum))
+    print(signum)
+    return
+
+
 if __name__ == '__main__':
     cache = ExpiringDict(max_len=100, max_age_seconds=3600)
+    signal.signal(signal.SIGUSR1, usr_handler)
+
     cb = CoinfloorBot()
     cb.set_config('coinfloor.props')
 
