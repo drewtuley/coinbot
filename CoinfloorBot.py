@@ -146,12 +146,11 @@ class OpenOrder(Base):
 
     def __repr__(self):
         return 'date: {date} {type:4} - price: {price} ' \
-               'amount: {amount} total: {total} ({id})'.format(price=self.price,
+               'amount: {amount} ({id})'.format(price=self.price,
                                                                amount=self.amount,
                                                                type=self.type,
                                                                id=self.order_id,
-                                                               date=self.order_date,
-                                                               total=self.total())
+                                                               date=self.order_date)
 
 
 class Balance(Base):
@@ -218,6 +217,13 @@ class Ticker(Base):
             return self.last == other.last and \
                    self.high == other.high and self.low == other.low and self.vwap == other.vwap and \
                    self.volume == other.volume and self.ask == other.ask and self.bid == other.bid
+
+
+    def compare_significant(self, other):
+        if other is not None and isinstance(other, Ticker):
+            return self.last == other.last and \
+                   self.ask == other.ask and self.bid == other.bid
+
 
     def __repr__(self):
         return ('Ticker: {date} Last: {last} High: {high} Low: {low} vwap: {vwap} volume: {volume} '
