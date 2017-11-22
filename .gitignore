@@ -2,6 +2,7 @@
 .idea/*
 *.pyc
 *.props
+*.log
 nohup.out
 ticker.loop
 coinfloor.db 

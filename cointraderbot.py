@@ -3,6 +3,7 @@ import time
 from slackclient import SlackClient
 from CoinfloorBot import CoinfloorBot
 import ConfigParser
+from parse import *
 
 
 cb = CoinfloorBot()
@@ -19,8 +20,12 @@ AT_BOT = "<@" + bot_id + ">"
 EXAMPLE_COMMAND = "do"
 HELP = 'help'
 
+# hash of 'value' requests by user
+value_cache={}
+
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
+
 
 def show_balance():
     balance = cb.get_balance()
@@ -32,10 +37,57 @@ def show_balance():
             text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
             text += '\nTotal Cash Valuation: {}'.format(mo.total + balance.gbp_balance)
         else:
-            text += 'unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value)
+            text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
     text += '```'
 
     return text
+
+
+def get_value(command, user):
+    p = parse('value {amt}', command)
+    amount=0
+    print(p)
+    if p and p['amt'] != '':
+        amount = p['amt']
+    elif user in value_cache:
+        amount = value_cache[user]
+       
+    text = '```Estimated sale value of {} XBT:'.format(amount)
+    mo, resp = cb.estimate_market('sell', {'quantity': amount})
+    if mo is not None:
+        text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
+        value_cache[user] = amount
+    else:
+        text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+
+    text += '```'
+    return  text
+
+
+def get_estimate(command, user):
+    p = parse('estimate {op} {amt}', command)
+    if p:
+        op = p['op']
+        amt = p['amt']
+        if op not in ['buy', 'sell']:
+            return 'Invalid OPeration "{}" [buy|sell]'.format(op)
+        try:
+            if float(amt)< 0:
+                return 'Invalid amount "{}" - must be >0'.format(amt)
+        except ValueError:
+            return 'Invalid amount "{}" - must be numeric and >0'.format(amt)
+
+        text = '```Estimated {op} value of {amt} XBT:'.format(amt=amt, op=op)
+        mo, resp = cb.estimate_market(op, {'quantity': amt})
+        if mo is not None:
+            text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
+        else:
+            text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+
+        text += '```'
+        return text
+    else:
+        return 'Invalid operation: {}'.format(command)
 
 def handle_command(command, channel, user):
     """
@@ -52,6 +104,10 @@ def handle_command(command, channel, user):
         response = 'Hi <@{}> I can do the following:\n*buy* - buy coins\n*sell* - sell coins'.format(user)
     elif command == 'show balance':
         response = show_balance()
+    elif command.startswith('value'):
+        response = get_value(command, user)
+    elif command.startswith('estimate'):
+        response = get_estimate(command, user)
     slack_client.api_call("chat.postMessage", channel=channel,
                           text=response, as_user=True)
 

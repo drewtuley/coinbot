@@ -57,7 +57,7 @@ if __name__ == '__main__':
         else:
             val = 0.0
             pnl = 0.0
-        print('{txn} Val:{val:8.2f} PnL:{pnl:8.2f}'.format(txn=txn, val=val, pnl=pnl))
+        print('{txn} Val:{val:10.2f} PnL:{pnl:10.2f}'.format(txn=txn, val=val, pnl=pnl))
 
     #our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
     #print(our_txn)
