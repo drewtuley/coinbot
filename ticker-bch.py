@@ -38,20 +38,20 @@ if __name__ == '__main__':
     cache = ExpiringDict(max_len=100, max_age_seconds=3600)
     signal.signal(signal.SIGUSR1, usr_handler)
 
-    cb = CoinfloorBot(fromccy='XBT')
+    cb = CoinfloorBot(fromccy='BCH')
     cb.set_config('coinfloor.props')
 
-    session = cb.get_db_session(echo=False)
+    #session = cb.get_db_session(echo=False)
 
     prev_t = cb.get_ticker()
+    print(prev_t)
 
     loop_wait = 15
     while loop_wait > 0:
         try:
             t = cb.get_ticker()
             #print(t)
-            bal = cb.get_balance()
-            #print(bal)
+            bal = None
             if t is not None and not t.compare_significant(prev_t):
                 volchange = t.volume - prev_t.volume
                 if bal is not None:
@@ -64,11 +64,11 @@ if __name__ == '__main__':
                 message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f})' \
                     .format(dt=t.date, bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
                             last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
-                #print(message)
+                print(message)
                 cb.post_to_slack(message)
                 #print('posted')
-                session.add(t)
-                session.commit()
+                #session.add(t)
+                #session.commit()
                 prev_t = t
 
                 if 'myip' not in cache:
