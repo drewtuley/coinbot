@@ -22,6 +22,7 @@ HELP = 'help'
 
 # hash of 'value' requests by user
 value_cache={}
+boo_cache={}
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
@@ -89,6 +90,18 @@ def get_estimate(command, user):
     else:
         return 'Invalid operation: {}'.format(command)
 
+
+def register_boo(command, channel, user):
+    p = parse('boo {long}', command)
+    if p:
+        secs = int(p['long'])
+        response = 'register a boo for {} on channel {} to happen in {} secs'.format(user, channel, secs)
+        print(response)
+        boo_cache[user] = (secs, channel)
+
+        return response
+
+
 def handle_command(command, channel, user):
     """
         Receives commands directed at the bot and determines if they
@@ -108,8 +121,30 @@ def handle_command(command, channel, user):
         response = get_value(command, user)
     elif command.startswith('estimate'):
         response = get_estimate(command, user)
+    elif command.startswith('boo'):
+        response = register_boo(command, channel, user)
     slack_client.api_call("chat.postMessage", channel=channel,
                           text=response, as_user=True)
+
+
+
+def do_boos():
+    to_boo=[]
+    for user in boo_cache.keys():
+        boo = boo_cache[user]
+        remaining = boo[0] - 1
+        if remaining > 0:
+            boo_cache[user] = (remaining, boo[1])
+        else:
+            to_boo.append(user)
+
+    for user in to_boo:
+        boo = boo_cache[user]
+        text='<@{}> BOO!!'.format(user)
+        slack_client.api_call("chat.postMessage", channel=boo[1],
+                          text=text, as_user=True)
+        boo_cache.pop(user)
+    
 
 
 def parse_slack_output(slack_rtm_output):
@@ -140,6 +175,7 @@ if __name__ == "__main__":
             command, channel, user = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
                 handle_command(command, channel, user)
+            do_boos()
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
         print("Connection failed. Invalid Slack token or bot ID?")

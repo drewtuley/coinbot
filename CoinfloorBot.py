@@ -198,6 +198,7 @@ class Ticker(Base):
     date = Column(DateTime)
 
     def parse(self, resp):
+        #print('debug: {}'.format(resp.json()))
         self.date = datetime.strptime(resp.headers['date'], '%a, %d %b %Y %H:%M:%S %Z')
 
         tick = resp.json()
@@ -281,15 +282,22 @@ class Error(object):
 
 
 class CoinfloorBot:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.config_file = None
         self.coinfloor_url = None
-        self.fromccy = None
-        self.toccy = None
+        if 'fromccy' in kwargs:
+            self.fromccy = kwargs['fromccy']
+        else:
+            self.fromccy = None
+        if 'toccy' in kwargs:
+            self.toccy = kwargs['toccy']
+        else:
+            self.toccy = None
         self.userid = None
         self.password = None
         self.slack_do_post = False
         self.slack_url = None
+        self.slack_channel = None
         self.slack_username = 'coinfloor.poster'
 
         self.allow_market_order = False
@@ -298,8 +306,7 @@ class CoinfloorBot:
 
     def __dir__(self):
         return ['config_file', 'coinfloor_url', 'fromccy', 'toccy', 'userid', 'password', 'slack_do_post', 'slack_url',
-                'slack_username',
-                'allow_market_order']
+                'slack_channel', 'slack_username', 'allow_market_order']
 
     def set_config(self, config_file):
         self.config_file = config_file
@@ -308,11 +315,16 @@ class CoinfloorBot:
 
         try:
             self.coinfloor_url = config.get('coinfloor', 'url')
-            self.fromccy = config.get('coinfloor', 'default_fromccy')
-            self.toccy = config.get('coinfloor', 'default_toccy')
+            if self.fromccy == None:
+                self.fromccy = config.get('coinfloor', 'default_fromccy')
+            if self.toccy == None:
+                self.toccy = config.get('coinfloor', 'default_toccy')
             self.userid = config.get('user', 'userid')
             self.password = config.get('user', 'password')
-            self.slack_url = config.get('slack', 'url')
+            url = '{}-url'.format(self.fromccy.lower())
+            self.slack_url = config.get('slack', url)
+            self.slack_channel = '#coinfloor-{}'.format(self.fromccy.lower())
+            #print('{} {}'.format(self.slack_url, self.slack_channel))
             self.slack_do_post = bool(config.get('slack', 'do_post') == 'True')
 
             self.xbt_to_trade = float(config.get('trade', 'xbt_to_trade'))
@@ -483,10 +495,12 @@ class CoinfloorBot:
             if 'username' not in payload:
                 payload['username'] = self.slack_username
             if 'channel' not in payload:
-                payload['channel'] = '#coinfloor'
+                payload['channel'] = self.slack_channel
             payload['text'] = message
 
+            #print('pts: {} {}'.format(self.slack_url, payload))
             r = requests.post(self.slack_url, json.dumps(payload))
+            #print(r)
 
     def get_db_session(self, echo=True):
         engine = create_engine('sqlite:///coinfloor.db', echo=echo)

@@ -7,4 +7,5 @@ nohup.out
 ticker.loop
 coinfloor.db 
 data/*
+logs/*
 hello.*
