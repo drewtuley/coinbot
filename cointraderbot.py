@@ -23,6 +23,7 @@ HELP = 'help'
 # hash of 'value' requests by user
 value_cache={}
 boo_cache={}
+warnings={}
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
@@ -102,6 +103,21 @@ def register_boo(command, channel, user):
         return response
 
 
+def register_warning(command, channel, user):
+    response='```Usage: warn <coins> <warning_value>\ni.e. @cointrader warn 2 16000 -  issue a warning when the value of 2 XBT drops below 16000```'
+    coins = None
+    value = None
+    p = parse('warn {coins} {value}', command)
+    if p:
+        try:
+            coins=float(p['coins'])
+            value=float(p['value'])
+        except:
+            pass
+        response='register warning when sell value of {} XBT drops below {} GBP'.format(coins, value)
+    return response
+
+
 def handle_command(command, channel, user):
     """
         Receives commands directed at the bot and determines if they
@@ -123,6 +139,8 @@ def handle_command(command, channel, user):
         response = get_estimate(command, user)
     elif command.startswith('boo'):
         response = register_boo(command, channel, user)
+    elif command.startswith('warn'):
+        response = register_warning(command, channel, user)
     slack_client.api_call("chat.postMessage", channel=channel,
                           text=response, as_user=True)
 
@@ -146,6 +164,10 @@ def do_boos():
         boo_cache.pop(user)
     
 
+def process_warnings():
+    for user in warnings:
+        print(warnings[user])
+  
 
 def parse_slack_output(slack_rtm_output):
     """
@@ -176,6 +198,7 @@ if __name__ == "__main__":
             if command and channel and user:
                 handle_command(command, channel, user)
             do_boos()
+            process_warnings()
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
         print("Connection failed. Invalid Slack token or bot ID?")
