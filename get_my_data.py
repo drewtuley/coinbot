@@ -50,6 +50,7 @@ if __name__ == '__main__':
     gbp_balance = balance.gbp_balance
     xbt_balance = balance.xbt_balance
     db_user_txns = session.query(UserTransaction).order_by(UserTransaction.tid.desc())
+    run_tot = 0.0
     for txn in db_user_txns[:txns_to_show]:
         if current_xbt_price is not None:
             val = current_xbt_price * txn.xbt
@@ -57,7 +58,8 @@ if __name__ == '__main__':
         else:
             val = 0.0
             pnl = 0.0
-        print('{txn} Val:{val:10.2f} PnL:{pnl:10.2f}'.format(txn=txn, val=val, pnl=pnl))
+        run_tot += pnl
+        print('{txn} Val:{val:10.2f} PnL:{pnl:10.2f} ({rt:10.2f})'.format(txn=txn, val=val, pnl=pnl, rt=run_tot))
 
     #our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
     #print(our_txn)
