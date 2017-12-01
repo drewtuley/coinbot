@@ -79,7 +79,7 @@ def register_change(p, channel, user, ts):
             response = get_register_msg(coins, HWM, value)
         else:
             warnings[ts] = (LWM, channel, user, coins, value, warning_count)
-            response = get_register_msg(coins, HWM, value)
+            response = get_register_msg(coins, LWM, value)
         return response
 
     return None
@@ -125,7 +125,7 @@ def show_warnings(iuser):
     for ts in warnings:
         warntype, channel, user, coins, value, count = warnings[ts]
         if iuser == user:
-            msg = msg + '{idx}: {msg}\n'.format(idx, get_register_msg(coins, warntype, value))
+            msg = msg + '{idx}: {msg}\n'.format(idx=idx, msg=get_register_msg(coins, warntype, value))
             idx += 1
 
     if msg != '':
