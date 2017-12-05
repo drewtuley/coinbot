@@ -49,9 +49,13 @@ warnings_backup = PDict('data', 'warnbot')
 for k in warnings_backup['keys']:
     warnings[k] = warnings_backup[k]
 
-repeat = warnings_backup['repeat']
-if repeat is not None:
-    repeat_count = repeat
+try:
+    repeat_count = warnings_backup['repeat']
+except KeyError:
+    pass
+
+warnings_backup['repeat'] = repeat_count
+
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
