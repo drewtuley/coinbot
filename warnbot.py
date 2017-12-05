@@ -1,11 +1,10 @@
-import time
 import copy
+import time
 from slackclient import SlackClient
 from CoinfloorBot import CoinfloorBot
 import ConfigParser
 from parse import *
 from persistqueue import PDict
-
 
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
@@ -29,6 +28,9 @@ HWM = 1
 LWM = 2
 watermark_msgs = {HWM: 'rises above', LWM: 'falls below'}
 
+repeat_count = 3
+
+
 class Warning:
     def __init__(self, warntype, channel, user, coins, value):
         self.warntype = warntype
@@ -36,12 +38,10 @@ class Warning:
         self.user = user
         self.coins = coins
         self.value = value
-        self.warning_count = warning_count
+        self.repeat_count = repeat_count
 
     def dec_count(self):
-        self.warning_count -= 1
-
-
+        self.repeat_count -= 1
 
 
 warnings = {}
@@ -49,8 +49,9 @@ warnings_backup = PDict('data', 'warnbot')
 for k in warnings_backup['keys']:
     warnings[k] = warnings_backup[k]
 
-warning_count = 3
-
+repeat = warnings_backup['repeat']
+if repeat is not None:
+    repeat_count = repeat
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
@@ -94,7 +95,7 @@ def get_values_a(p):
         coins = float(p['coins'])
         value = float(p['value'])
         return coins, value
-    except:
+    except ValueError:
         return None, None
 
 
@@ -177,7 +178,8 @@ def show_warnings(iuser):
     for ts in warnings:
         warning = get_warning(ts)
         if iuser == warning.user:
-            msg = msg + '{idx}: {msg}\n'.format(idx=idx, msg=get_register_msg(warning.coins, warning.warntype, warning.value))
+            msg = msg + '{idx}: {msg}\n'.format(idx=idx,
+                                                msg=get_register_msg(warning.coins, warning.warntype, warning.value))
             idx += 1
 
     if msg != '':
@@ -191,9 +193,10 @@ def set_repeat(command):
     p = parse('repeat {times}', command)
     if p:
         try:
-            warnings = int(p['times'])
-            response = 'warning repeat set to {}'.format(warnings)
-        except:
+            repeat_count = int(p['times'])
+            response = 'warning repeat set to {}'.format(repeat_count)
+            warnings_backup['repeat'] = repeat_count
+        except ValueError:
             pass
 
     return response
@@ -201,7 +204,7 @@ def set_repeat(command):
 
 def process_warnings():
     tozap = []
-    coin_value_cache={}
+    coin_value_cache = {}
     for ts in warnings:
         print(warnings[ts])
         resp = None
@@ -210,21 +213,23 @@ def process_warnings():
             rtvalue = coin_value_cache[warning.coins]
         except KeyError:
             rtvalue = get_coin_value(warning.coins)
-            coin_value_cache[warning.coins]=rtvalue
+            coin_value_cache[warning.coins] = rtvalue
 
         print('value of {} is {}'.format(warning.coins, rtvalue))
         if warning.warntype == HWM and rtvalue > warning.value:
-            resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins, warning.value, rtvalue)
+            resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
+                                                                                    warning.value, rtvalue)
             warning.dec_count()
         elif warning.warntype == LWM and rtvalue < warning.value:
-            resp = 'Warning <@{}>: value of {} XBT has dropped below {} to {}'.format(warning.user, warning.coins, warning.value, rtvalue)
+            resp = 'Warning <@{}>: value of {} XBT has dropped below {} to {}'.format(warning.user, warning.coins,
+                                                                                      warning.value, rtvalue)
             warning.dec_count()
 
-        if warning.warning_count <= 0:
+        if warning.repeat_count <= 0:
             tozap.append(ts)
-
+        print(resp)
         if resp is not None:
-            slack_client.api_call("chat.postMessage", channel=channel,
+            slack_client.api_call("chat.postMessage", channel=warning.channel,
                                   text=resp, as_user=True)
 
     for ts in tozap:
