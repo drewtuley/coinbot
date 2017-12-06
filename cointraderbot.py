@@ -7,7 +7,6 @@ import ConfigParser
 from parse import *
 import logging
 
-
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
 my_parser = ConfigParser.SafeConfigParser()
@@ -20,8 +19,8 @@ logging.basicConfig(format='%(asctime)s %(message)s',
 logging.captureWarnings(True)
 
 # starterbot's ID as an environment variable
-bot_id = my_parser.get('bot','bot_id')
-slack_bot_token = my_parser.get('bot','slack_bot_token')
+bot_id = my_parser.get('bot', 'bot_id')
+slack_bot_token = my_parser.get('bot', 'slack_bot_token')
 
 # constants
 AT_BOT = "<@" + bot_id + ">"
@@ -29,9 +28,9 @@ EXAMPLE_COMMAND = "do"
 HELP = 'help'
 
 # hash of 'value' requests by user
-value_cache={}
-boo_cache={}
-warnings={}
+value_cache = {}
+boo_cache = {}
+warnings = {}
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
@@ -55,13 +54,13 @@ def show_balance():
 
 def get_value(command, user):
     p = parse('value {amt}', command)
-    amount=0
-    #print(p)
+    amount = 0
+    # print(p)
     if p and p['amt'] != '':
         amount = p['amt']
     elif user in value_cache:
         amount = value_cache[user]
-       
+
     text = '```Estimated sale value of {} XBT:'.format(amount)
     mo, resp = cb.estimate_market('sell', {'quantity': amount})
     if mo is not None:
@@ -71,7 +70,7 @@ def get_value(command, user):
         text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
 
     text += '```'
-    return  text
+    return text
 
 
 def get_estimate(command, user):
@@ -82,7 +81,7 @@ def get_estimate(command, user):
         if op not in ['buy', 'sell']:
             return 'Invalid OPeration "{}" [buy|sell]'.format(op)
         try:
-            if float(amt)< 0:
+            if float(amt) < 0:
                 return 'Invalid amount "{}" - must be >0'.format(amt)
         except ValueError:
             return 'Invalid amount "{}" - must be numeric and >0'.format(amt)
@@ -105,24 +104,24 @@ def register_boo(command, channel, user):
     if p:
         secs = int(p['long'])
         response = 'register a boo for {} on channel {} to happen in {} secs'.format(user, channel, secs)
-        #print(response)
+        # print(response)
         boo_cache[user] = (secs, channel)
 
         return response
 
 
 def register_warning(command, channel, user):
-    response='```Usage: warn <coins> <warning_value>\ni.e. @cointrader warn 2 16000 -  issue a warning when the value of 2 XBT drops below 16000```'
+    response = '```Usage: warn <coins> <warning_value>\ni.e. @cointrader warn 2 16000 -  issue a warning when the value of 2 XBT drops below 16000```'
     coins = None
     value = None
     p = parse('warn {coins} {value}', command)
     if p:
         try:
-            coins=float(p['coins'])
-            value=float(p['value'])
+            coins = float(p['coins'])
+            value = float(p['value'])
         except:
             pass
-        response='register warning when sell value of {} XBT drops below {} GBP'.format(coins, value)
+        response = 'register warning when sell value of {} XBT drops below {} GBP'.format(coins, value)
     return response
 
 
@@ -153,9 +152,8 @@ def handle_command(command, channel, user):
                           text=response, as_user=True)
 
 
-
 def do_boos():
-    to_boo=[]
+    to_boo = []
     for user in boo_cache.keys():
         boo = boo_cache[user]
         remaining = boo[0] - 1
@@ -166,16 +164,16 @@ def do_boos():
 
     for user in to_boo:
         boo = boo_cache[user]
-        text='<@{}> BOO!!'.format(user)
+        text = '<@{}> BOO!!'.format(user)
         slack_client.api_call("chat.postMessage", channel=boo[1],
-                          text=text, as_user=True)
+                              text=text, as_user=True)
         boo_cache.pop(user)
-    
+
 
 def process_warnings():
     for user in warnings:
         logging.debug(warnings[user])
-  
+
 
 def parse_slack_output(slack_rtm_output):
     """
@@ -198,7 +196,7 @@ def parse_slack_output(slack_rtm_output):
 
 if __name__ == "__main__":
 
-    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
+    READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
     if slack_client.rtm_connect():
         logging.debug("CoinTraderbot connected and running!")
         while True:

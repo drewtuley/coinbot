@@ -8,12 +8,10 @@ from parse import *
 from persistqueue import PDict
 import logging
 
-
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
 my_parser = ConfigParser.SafeConfigParser()
 my_parser.read('coinfloor.props')
-
 
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -65,7 +63,6 @@ except KeyError:
     pass
 
 warnings_backup['repeat'] = repeat_count
-
 
 # instantiate Slack & Twilio clients
 slack_client = SlackClient(slack_bot_token)
