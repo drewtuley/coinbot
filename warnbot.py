@@ -1,15 +1,25 @@
 import copy
 import time
+from datetime import datetime
 from slackclient import SlackClient
 from CoinfloorBot import CoinfloorBot
 import ConfigParser
 from parse import *
 from persistqueue import PDict
+import logging
+
 
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
 my_parser = ConfigParser.SafeConfigParser()
 my_parser.read('coinfloor.props')
+
+
+dt = str(datetime.now())[:10]
+logging.basicConfig(format='%(asctime)s %(message)s',
+                    filename='logs/warnbot_' + dt + '.log',
+                    level=logging.DEBUG)
+logging.captureWarnings(True)
 
 # warnbot's ID in config file
 bot_id = my_parser.get('warnbot', 'bot_id')
@@ -90,7 +100,7 @@ def get_coin_value(amount):
         else:
             return None
     except:
-        print('failed to get coin value')
+        logging.error('failed to get coin value')
         return None
 
 
@@ -154,7 +164,7 @@ def clear_warnings(user):
 
 
 def register_warning(command, channel, user, ts):
-    print(command)
+    logging.debug(command)
 
     response = HELP_MESSAGE
     p = parse('when {coins} below {value}', command)
@@ -210,7 +220,7 @@ def process_warnings():
     tozap = []
     coin_value_cache = {}
     for ts in warnings:
-        print(warnings[ts])
+        logging.debug(warnings[ts])
         resp = None
         warning = get_warning(ts)
         try:
@@ -219,7 +229,7 @@ def process_warnings():
             rtvalue = get_coin_value(warning.coins)
             coin_value_cache[warning.coins] = rtvalue
 
-        print('value of {} is {}'.format(warning.coins, rtvalue))
+        logging.debug('value of {} is {}'.format(warning.coins, rtvalue))
         if warning.warntype == HWM and rtvalue > warning.value:
             resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
                                                                                     warning.value, rtvalue)
@@ -231,7 +241,7 @@ def process_warnings():
 
         if warning.repeat_count <= 0:
             tozap.append(ts)
-        print(resp)
+        logging.debug(resp)
         if resp is not None:
             slack_client.api_call("chat.postMessage", channel=warning.channel,
                                   text=resp, as_user=True)
@@ -247,7 +257,7 @@ def handle_command(command, channel, user, ts):
         returns back what it needs for clarification.
     """
     response = "Not sure what you mean. Use the *help* command "
-    print('Command:{} Channel: {} User: {}'.format(command, channel, user))
+    logging.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
     if command.startswith(HELP):
         response = HELP_MESSAGE
     elif command.startswith('when'):
@@ -271,7 +281,7 @@ def parse_slack_output(slack_rtm_output):
     """
     for o in slack_rtm_output:
         for key in o:
-            print('{}:{}'.format(key, o[key]))
+            logging.debug('{}:{}'.format(key, o[key]))
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
@@ -286,7 +296,7 @@ if __name__ == "__main__":
 
     READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
     if slack_client.rtm_connect():
-        print("warnbot connected and running!")
+        logging.debug("warnbot connected and running!")
         while True:
             command, channel, user, ts = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
@@ -294,4 +304,4 @@ if __name__ == "__main__":
             process_warnings()
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
-        print("Connection failed. Invalid Slack token or bot ID?")
+        logging.error("Connection failed. Invalid Slack token or bot ID?")
