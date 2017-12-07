@@ -238,8 +238,8 @@ def process_warnings():
 
         if warning.repeat_count <= 0:
             tozap.append(ts)
-        logging.debug(resp)
         if resp is not None:
+            logging.debug('post to slack {}'.format(resp))
             slack_client.api_call("chat.postMessage", channel=warning.channel,
                                   text=resp, as_user=True)
 

@@ -44,7 +44,7 @@ def show_balance():
         mo, resp = cb.estimate_market('sell', {'quantity': balance.xbt_available})
         if mo is not None:
             text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
-            text += '\nTotal Cash Valuation: {}'.format(mo.total + balance.gbp_balance)
+            text += '\nTotal Cash Valuation: {:,.2f}'.format(mo.total + balance.gbp_balance)
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
     text += '```'
