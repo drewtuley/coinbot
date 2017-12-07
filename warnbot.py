@@ -57,6 +57,9 @@ warnings_backup = PDict('data', 'warnbot')
 for k in warnings_backup['keys']:
     warnings[k] = warnings_backup[k]
 
+if len(warnings) > 0:
+    logging.info('Loaded {} warnings from storage'.format(len(warnings)))
+
 try:
     repeat_count = warnings_backup['repeat']
 except KeyError:
@@ -224,24 +227,28 @@ def process_warnings():
             rtvalue = coin_value_cache[warning.coins]
         except KeyError:
             rtvalue = get_coin_value(warning.coins)
-            coin_value_cache[warning.coins] = rtvalue
+            if rtvalue is not None:
+                coin_value_cache[warning.coins] = rtvalue
 
-        logging.debug('value of {} is {}'.format(warning.coins, rtvalue))
-        if warning.warntype == HWM and rtvalue > warning.value:
-            resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
-                                                                                    warning.value, rtvalue)
-            warning.dec_count()
-        elif warning.warntype == LWM and rtvalue < warning.value:
-            resp = 'Warning <@{}>: value of {} XBT has dropped below {} to {}'.format(warning.user, warning.coins,
-                                                                                      warning.value, rtvalue)
-            warning.dec_count()
+        if rtvalue is not None:
+            logging.debug('value of {} is {}'.format(warning.coins, rtvalue))
+            if warning.warntype == HWM and rtvalue > warning.value:
+                resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
+                                                                                        warning.value, rtvalue)
+                warning.dec_count()
+            elif warning.warntype == LWM and rtvalue < warning.value:
+                resp = 'Warning <@{}>: value of {} XBT has dropped below {} to {}'.format(warning.user, warning.coins,
+                                                                                          warning.value, rtvalue)
+                warning.dec_count()
 
-        if warning.repeat_count <= 0:
-            tozap.append(ts)
-        if resp is not None:
-            logging.debug('post to slack {}'.format(resp))
-            slack_client.api_call("chat.postMessage", channel=warning.channel,
-                                  text=resp, as_user=True)
+            if warning.repeat_count <= 0:
+                tozap.append(ts)
+            if resp is not None:
+                logging.debug('post to slack {}'.format(resp))
+                slack_client.api_call("chat.postMessage", channel=warning.channel,
+                                      text=resp, as_user=True)
+        else:
+            logging.warning('Unable to get realtime value of {} XBT'.format(warning.coins))
 
     for ts in tozap:
         remove_warning(ts)
