@@ -199,7 +199,7 @@ def show_warnings(iuser):
     if msg != '':
         return '```' + msg + '```'
     else:
-        return ''
+        return 'No warnings'
 
 
 def set_repeat(command):
@@ -231,7 +231,7 @@ def process_warnings():
                 coin_value_cache[warning.coins] = rtvalue
 
         if rtvalue is not None:
-            logging.debug('value of {} is {}'.format(warning.coins, rtvalue))
+            logging.debug('value of {} is {:,.2f} @ {:.2f}'.format(warning.coins, rtvalue, float(rtvalue/warning.coins)))
             if warning.warntype == HWM and rtvalue > warning.value:
                 resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
                                                                                         warning.value, rtvalue)
