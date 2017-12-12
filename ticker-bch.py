@@ -6,7 +6,8 @@ import signal
 from CoinfloorBot import CoinfloorBot
 from CoinfloorBot import Ticker
 from expiringdict import ExpiringDict
-
+from datetime import datetime
+import logging
 
 def show_change(curr_val, prev_val):
     if curr_val < prev_val:
@@ -41,16 +42,22 @@ if __name__ == '__main__':
     cb = CoinfloorBot(fromccy='BCH')
     cb.set_config('coinfloor.props')
 
-    #session = cb.get_db_session(echo=False)
+
+    dt = str(datetime.now())[:10]
+    logging.basicConfig(format='%(asctime)s %(message)s',
+                        filename='logs/ticker_bch_' + dt + '.log',
+                        level=logging.DEBUG)
+    logging.captureWarnings(True)
+
 
     prev_t = cb.get_ticker()
-    print(prev_t)
+    logging.info(prev_t)
 
     loop_wait = 15
     while loop_wait > 0:
         try:
             t = cb.get_ticker()
-            #print(t)
+            logging.info(t)
             bal = None
             if t is not None and not t.compare_significant(prev_t):
                 volchange = t.volume - prev_t.volume
@@ -64,9 +71,9 @@ if __name__ == '__main__':
                 message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f})' \
                     .format(dt=t.date, bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
                             last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
-                print(message)
+                logging.info(message)
                 cb.post_to_slack(message)
-                #print('posted')
+                logging.info('posted')
                 #session.add(t)
                 #session.commit()
                 prev_t = t
