@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     dt = str(datetime.now())[:10]
     logging.basicConfig(format='%(asctime)s %(message)s',
-                        filename='logs/ticker_xbt' + dt + '.log',
+                        filename='logs/ticker_xbt_' + dt + '.log',
                         level=logging.DEBUG)
     logging.captureWarnings(True)
 
