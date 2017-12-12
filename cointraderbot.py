@@ -60,16 +60,25 @@ def get_value(command, user):
         amount = p['amt']
     elif user in value_cache:
         amount = value_cache[user]
+    text = '```'
+    text += get_estimated_value('sell', amount) + '\n'
+    text += get_estimated_value('buy', amount)
 
-    text = '```Estimated sale value of {} XBT:'.format(amount)
-    mo, resp = cb.estimate_market('sell', {'quantity': amount})
+    text += '```'
+    return text
+
+
+def get_estimated_value(buy_sell, amount):
+
+    text = 'Estimated {} value of {} XBT:'.format(buy_sell, amount)
+    mo, resp = cb.estimate_market(buy_sell, {'quantity': amount})
     if mo is not None:
         text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
         value_cache[user] = amount
     else:
-        text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+        text += 'unable to get estimated {} market: status: {} '.format(buy_sell, resp.status_code)
+    logging.info(text)
 
-    text += '```'
     return text
 
 
