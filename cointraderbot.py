@@ -9,18 +9,19 @@ import logging
 
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
-my_parser = ConfigParser.SafeConfigParser()
-my_parser.read('coinfloor.props')
+
+config = ConfigParser.SafeConfigParser()
+config.read('cointraderbot.props')
 
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename='logs/cointraderbot_' + dt + '.log',
+                    filename=config.get('cointraderbot','logfile') + dt + '.log',
                     level=logging.DEBUG)
 logging.captureWarnings(True)
 
 # starterbot's ID as an environment variable
-bot_id = my_parser.get('bot', 'bot_id')
-slack_bot_token = my_parser.get('bot', 'slack_bot_token')
+bot_id = config.get('cointraderbot', 'bot_id')
+slack_bot_token = config.get('cointraderbot', 'slack_bot_token')
 
 # constants
 AT_BOT = "<@" + bot_id + ">"

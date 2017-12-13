@@ -10,18 +10,19 @@ import logging
 
 cb = CoinfloorBot()
 cb.set_config('coinfloor.props')
-my_parser = ConfigParser.SafeConfigParser()
-my_parser.read('coinfloor.props')
+
+config = ConfigParser.SafeConfigParser()
+config.read('warnbot.props')
 
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename='logs/warnbot_' + dt + '.log',
+                    filename=config.get('warnbot','logfile') + dt + '.log',
                     level=logging.DEBUG)
 logging.captureWarnings(True)
 
 # warnbot's ID in config file
-bot_id = my_parser.get('warnbot', 'bot_id')
-slack_bot_token = my_parser.get('warnbot', 'slack_bot_token')
+bot_id = config.get('warnbot', 'bot_id')
+slack_bot_token = config.get('warnbot', 'slack_bot_token')
 
 # constants
 AT_BOT = "<@" + bot_id + ">"

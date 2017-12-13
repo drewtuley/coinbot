@@ -54,7 +54,7 @@ class UserTransaction(Base):
         if self.xbt_gbp is None:
             xchng = '{:7s}'.format(' ')
         else:
-            xchng = '{:7.2f}'.format(self.xbt_gbp)
+            xchng = '{:-8.2f}'.format(self.xbt_gbp)
         return '{} {:15} GBP:{:10.2f}  XBT:{:10.4f} @ {} - id {:18}'.format(self.tf_date,
                                                                                            self.mapped_type,
                                                                                            self.gbp, self.xbt,
