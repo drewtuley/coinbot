@@ -1,12 +1,11 @@
-import copy
-import time
-from datetime import datetime
-from slackclient import SlackClient
-from CoinfloorBot import CoinfloorBot
 import ConfigParser
+import copy
+
 from parse import *
 from persistqueue import PDict
-import logging
+from slackclient import SlackClient
+
+from CoinfloorBot import CoinfloorBot
 
 cb_xbt = CoinfloorBot()
 cb_xbt.set_config('coinfloor.props')
@@ -18,10 +17,9 @@ coin_bot = {'XBT': cb_xbt, 'BCH': cb_bch}
 config = ConfigParser.SafeConfigParser()
 config.read('warnbot.props')
 
-
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename=config.get('warnbot','logfile') + dt + '.log',
+                    filename=config.get('warnbot', 'logfile') + dt + '.log',
                     level=logging.DEBUG)
 logging.captureWarnings(True)
 
@@ -124,8 +122,9 @@ def get_values_a(p):
 
 def get_register_msg(coins, ccy, watermark, value):
     return 'registered a warning when the value of {coins} {ccy} {bar} {value} GBP'.format(coins=coins, ccy=ccy,
-                                                                                         bar=watermark_msgs[watermark],
-                                                                                         value=value)
+                                                                                           bar=watermark_msgs[
+                                                                                               watermark],
+                                                                                           value=value)
 
 
 def register_watermark(watermark, p, channel, user, ts):
@@ -142,7 +141,7 @@ def register_watermark(watermark, p, channel, user, ts):
 
 def register_change(p, channel, user, ts):
     coins, ccy, pcchange = get_values_a(p)
-    if coins is None or ccy not in ['XBT','BCH']:
+    if coins is None or ccy not in ['XBT', 'BCH']:
         return None
     rtvalue = get_coin_value(coins, ccy)
     if rtvalue is not None:
@@ -173,25 +172,27 @@ def clear_warnings(user):
     return 'all warnings for <@{}> cleared'.format(user)
 
 
+watermark = 1
+change = 2
+warning_funcs = {'when {coins} {ccy} above {value}': watermark,
+                 'when {coins} {ccy} below {value}': watermark,
+                 'when {coins} {ccy} changes {value}': change}
+
+
 def register_warning(command, channel, user, ts):
     logging.debug(command)
 
     response = HELP_MESSAGE
-    p = parse('when {coins} {ccy} below {value}', command)
-    if p:
-        r = register_watermark(LWM, p, channel, user, ts)
-        if r is not None:
-            response = r
-    p = parse('when {coins} {ccy} above {value}', command)
-    if p:
-        r = register_watermark(HWM, p, channel, user, ts)
-        if r is not None:
-            response = r
-    p = parse('when {coins} {ccy} changes {value}', command)
-    if p:
-        r = register_change(p, channel, user, ts)
-        if r is not None:
-            response = r
+    for spec in warning_funcs:
+        p = parse(spec, command)
+        if p:
+            if warning_funcs[spec] == watermark:
+                r = register_watermark(HWM, p, channel, user, ts)
+            elif warning_funcs[spec] == change:
+                r = register_change(p, channel, user, ts)
+            if r is not None:
+                response = r
+                break
 
     return response
 
@@ -203,7 +204,8 @@ def show_warnings(iuser):
         warning = get_warning(ts)
         if iuser == warning.user:
             msg = msg + '{idx}: {msg}\n'.format(idx=idx,
-                                                msg=get_register_msg(warning.coins, warning.ccy, warning.warntype, warning.value))
+                                                msg=get_register_msg(warning.coins, warning.ccy, warning.warntype,
+                                                                     warning.value))
             idx += 1
 
     if msg != '':
@@ -228,7 +230,7 @@ def set_repeat(command):
 
 def process_warnings():
     tozap = []
-    coin_value_cache = {'XBT':{}, 'BCH': {}}
+    coin_value_cache = {'XBT': {}, 'BCH': {}}
     for ts in warnings:
         logging.debug(warnings[ts])
         resp = None
@@ -241,14 +243,17 @@ def process_warnings():
                 coin_value_cache[warning.ccy][warning.coins] = rtvalue
 
         if rtvalue is not None:
-            logging.debug('value of {} {} is {:,.2f} @ {:.2f}'.format(warning.coins, warning.ccy, rtvalue, float(rtvalue/warning.coins)))
+            logging.debug('value of {} {} is {:,.2f} @ {:.2f}'.format(warning.coins, warning.ccy, rtvalue,
+                                                                      float(rtvalue / warning.coins)))
             if warning.warntype == HWM and rtvalue > warning.value:
-                resp = 'Warning <@{}>: value of {} {} has risen above {} to {}'.format(warning.user, warning.coins, warning.ccy,
-                                                                                        warning.value, rtvalue)
+                resp = 'Warning <@{}>: value of {} {} has risen above {} to {}'.format(warning.user, warning.coins,
+                                                                                       warning.ccy,
+                                                                                       warning.value, rtvalue)
                 warning.dec_count()
             elif warning.warntype == LWM and rtvalue < warning.value:
-                resp = 'Warning <@{}>: value of {} {} has dropped below {} to {}'.format(warning.user, warning.coins, warning.ccy,
-                                                                                          warning.value, rtvalue)
+                resp = 'Warning <@{}>: value of {} {} has dropped below {} to {}'.format(warning.user, warning.coins,
+                                                                                         warning.ccy,
+                                                                                         warning.value, rtvalue)
                 warning.dec_count()
 
             if warning.repeat_count <= 0:

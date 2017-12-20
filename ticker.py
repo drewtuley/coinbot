@@ -1,14 +1,14 @@
-import time
-import requests
-import re
-import os
-import sys
-import signal
-from CoinfloorBot import CoinfloorBot
-from CoinfloorBot import Ticker
-from expiringdict import ExpiringDict
-from datetime import datetime
 import logging
+import os
+import re
+import sys
+import time
+from datetime import datetime
+
+import requests
+from expiringdict import ExpiringDict
+
+from CoinfloorBot import CoinfloorBot
 
 
 def show_change(curr_val, prev_val):
@@ -23,18 +23,12 @@ def show_change(curr_val, prev_val):
 
 
 def get_my_ip():
-    IP='http://ip4.me'
-    r = requests.get(IP)
+    ip = 'http://ip4.me'
+    r = requests.get(ip)
     if r.status_code == 200:
-        m=re.search('\d+[.]\d+[.]\d+[.]\d+', r.text)
+        m = re.search('\d+[.]\d+[.]\d+[.]\d+', r.text)
         if m != None:
             return (m.group())
-
-
-def usr_handler(signum, frame):
-    cb.post_to_slack('user interrupt {}'.format(signum))
-    print(signum)
-    return
 
 
 if __name__ == '__main__':
@@ -44,7 +38,6 @@ if __name__ == '__main__':
         fromccy = 'XBT'
 
     cache = ExpiringDict(max_len=100, max_age_seconds=3600)
-    signal.signal(signal.SIGUSR1, usr_handler)
 
     cb = CoinfloorBot(fromccy=fromccy)
     cb.set_config('coinfloor.props')
@@ -52,10 +45,9 @@ if __name__ == '__main__':
     session = cb.get_db_session(echo=False)
     prev_t = cb.get_ticker()
 
-
     dt = str(datetime.now())[:10]
     logging.basicConfig(format='%(asctime)s %(message)s',
-                        filename='logs/ticker_'+fromccy.lower()+'_' + dt + '.log',
+                        filename='logs/ticker_' + fromccy.lower() + '_' + dt + '.log',
                         level=logging.DEBUG)
     logging.captureWarnings(True)
 
@@ -64,7 +56,7 @@ if __name__ == '__main__':
         try:
             t = cb.get_ticker()
             logging.info(t)
-            gbp_bal,from_bal = cb.get_balance()
+            gbp_bal, from_bal = cb.get_balance()
             logging.info(gbp_bal)
             if t is not None and not t.compare_significant(prev_t):
                 volchange = t.volume - prev_t.volume

@@ -1,11 +1,9 @@
-import os
-import time
-from datetime import datetime
-from slackclient import SlackClient
-from CoinfloorBot import CoinfloorBot
 import ConfigParser
+
 from parse import *
-import logging
+from slackclient import SlackClient
+
+from CoinfloorBot import CoinfloorBot
 
 cb = CoinfloorBot(fromccy='XBT')
 cb.set_config('coinfloor.props')
@@ -17,7 +15,7 @@ config.read('cointraderbot.props')
 
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename=config.get('cointraderbot','logfile') + dt + '.log',
+                    filename=config.get('cointraderbot', 'logfile') + dt + '.log',
                     level=logging.DEBUG)
 logging.captureWarnings(True)
 
@@ -42,7 +40,7 @@ slack_client = SlackClient(slack_bot_token)
 def show_balance():
     gbp_balance, xbt_balance = cb.get_balance()
     gbp_balance, bch_balance = cb_bch.get_balance()
-    text = '```GBP Balance: {}\nXBT Balance: {}\nBCH Balance: {}'.format(gbp_balance, xbt_balance, bch_balance)
+    text = '```{}\n{}\n{}'.format(gbp_balance, xbt_balance, bch_balance)
     if xbt_balance.available > 0:
         mo, resp = cb.estimate_market('sell', {'quantity': xbt_balance.available})
         if mo is not None:
@@ -57,7 +55,7 @@ def show_balance():
             text += '\nBCH cash valuation: {} @ {}'.format(mo, mo.price())
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
-    text += '\nTotal Cash Valuation: {:,.2f}'.format(xbt_value +bch_value + gbp_balance.balance)
+    text += '\nTotal Cash Valuation: {:,.2f}'.format(xbt_value + bch_value + gbp_balance.balance)
     text += '```'
 
     return text
@@ -80,7 +78,6 @@ def get_value(command, user):
 
 
 def get_estimated_value(buy_sell, amount):
-
     text = 'Estimated {} value of {} XBT:'.format(buy_sell, amount)
     mo, resp = cb.estimate_market(buy_sell, {'quantity': amount})
     if mo is not None:
@@ -119,32 +116,6 @@ def get_estimate(command, user):
         return 'Invalid operation: {}'.format(command)
 
 
-def register_boo(command, channel, user):
-    p = parse('boo {long}', command)
-    if p:
-        secs = int(p['long'])
-        response = 'register a boo for {} on channel {} to happen in {} secs'.format(user, channel, secs)
-        # print(response)
-        boo_cache[user] = (secs, channel)
-
-        return response
-
-
-def register_warning(command, channel, user):
-    response = '```Usage: warn <coins> <warning_value>\ni.e. @cointrader warn 2 16000 -  issue a warning when the value of 2 XBT drops below 16000```'
-    coins = None
-    value = None
-    p = parse('warn {coins} {value}', command)
-    if p:
-        try:
-            coins = float(p['coins'])
-            value = float(p['value'])
-        except:
-            pass
-        response = 'register warning when sell value of {} XBT drops below {} GBP'.format(coins, value)
-    return response
-
-
 def handle_command(command, channel, user):
     """
         Receives commands directed at the bot and determines if they
@@ -164,35 +135,9 @@ def handle_command(command, channel, user):
         response = get_value(command, user)
     elif command.startswith('estimate'):
         response = get_estimate(command, user)
-    elif command.startswith('boo'):
-        response = register_boo(command, channel, user)
-    elif command.startswith('warn'):
-        response = register_warning(command, channel, user)
+
     slack_client.api_call("chat.postMessage", channel=channel,
                           text=response, as_user=True)
-
-
-def do_boos():
-    to_boo = []
-    for user in boo_cache.keys():
-        boo = boo_cache[user]
-        remaining = boo[0] - 1
-        if remaining > 0:
-            boo_cache[user] = (remaining, boo[1])
-        else:
-            to_boo.append(user)
-
-    for user in to_boo:
-        boo = boo_cache[user]
-        text = '<@{}> BOO!!'.format(user)
-        slack_client.api_call("chat.postMessage", channel=boo[1],
-                              text=text, as_user=True)
-        boo_cache.pop(user)
-
-
-def process_warnings():
-    for user in warnings:
-        logging.debug(warnings[user])
 
 
 def parse_slack_output(slack_rtm_output):
@@ -223,8 +168,7 @@ if __name__ == "__main__":
             command, channel, user = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
                 handle_command(command, channel, user)
-            do_boos()
-            process_warnings()
+
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
         logging.debug("Connection failed. Invalid Slack token or bot ID?")
