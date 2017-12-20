@@ -157,31 +157,21 @@ class Balance(Base):
     __tablename__ = 'bal_balance'
 
     id = Column(Integer, Sequence('balance_id_seq'), primary_key=True)
-    gbp_balance = Column(Float)
-    gbp_available = Column(Float)
-    gbp_reserved = Column(Float)
-    xbt_balance = Column(Float)
-    xbt_available = Column(Float)
-    xbt_reserved = Column(Float)
+    bal_date = Column(DateTime)
+    ccy = Column(String)
+    balance = Column(Float)
+    available = Column(Float)
+    reserved = Column(Float)
 
-    def parse(self, balance):
-        self.gbp_available = float(balance['gbp_available'])
-        self.gbp_balance = float(balance['gbp_balance'])
-        self.gbp_reserved = float(balance['gbp_reserved'])
-        self.xbt_available = float(balance['xbt_available'])
-        self.xbt_balance = float(balance['xbt_balance'])
-        self.xbt_reserved = float(balance['xbt_reserved'])
-
-    def to_json(self):
-        return
-        {'gbp_available': self.gbp_available, 'gbp_balance': self.gbp_balance, 'gbp_reserved': self.gbp_reserved,
-         'xbt_available': self.xbt_available, 'xbt_balance': self.xbt_balance, 'xbt_reserved': self.xbt_reserved}
+    def parse(self, in_balance, in_ccy, in_date):
+        self.ccy = in_ccy
+        self.bal_date = in_date
+        self.available = float(in_balance[in_ccy.lower()+'_available'])
+        self.balance = float(in_balance[in_ccy.lower()+'_balance'])
+        self.reserved = float(in_balance[in_ccy.lower()+'_reserved'])
 
     def __repr__(self):
-        return 'GBP: r {} a {} b {}   XBT: r {} a {} b {}'.format(self.gbp_reserved, self.gbp_available,
-                                                                  self.gbp_balance,
-                                                                  self.xbt_reserved, self.xbt_available,
-                                                                  self.xbt_balance)
+        return '{ccy}: r {r:10.2f} a {a:10.2f} b {b:10.2f}'.format(r=self.reserved, a=self.available, b=self.balance, ccy = self.ccy)
 
 
 class Ticker(Base):
@@ -196,6 +186,7 @@ class Ticker(Base):
     bid = Column(Float)
     ask = Column(Float)
     date = Column(DateTime)
+    fromccy = Column(String)
 
     def parse(self, resp):
         #print('debug: {}'.format(resp.json()))
@@ -213,6 +204,9 @@ class Ticker(Base):
         except (TypeError, KeyError) as err:
             pass
 
+    def set_fromccy(self, fromccy):
+        self.fromccy = fromccy
+
     def compare(self, other):
         if other is not None and isinstance(other, Ticker):
             return self.last == other.last and \
@@ -227,9 +221,9 @@ class Ticker(Base):
 
 
     def __repr__(self):
-        return ('Ticker: {date} Last: {last} High: {high} Low: {low} vwap: {vwap} volume: {volume} '
-                'bid: {bid} ask: {ask}'.
-                format(date=self.date, last=self.last, high=self.high,
+        return ('Ticker: {ccy} {date} Last: {last:10.2f} High: {high:10.2f} Low: {low:10.2f} vwap: {vwap:10.2f} volume: {volume:6.2f} '
+                'bid: {bid:10.2f} ask: {ask:10.2f}'.
+                format(ccy=self.fromccy, date=self.date, last=self.last, high=self.high,
                        low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))
 
     def to_json(self):
@@ -255,7 +249,7 @@ class MarketOrder(Base):
         return {'total': self.total, 'quantity': self.quantity}
 
     def __repr__(self):
-        return 'total: {total} quantity: {quantity}'.format(total=self.total, quantity=self.quantity)
+        return 'total: {total:10.2f} quantity: {quantity:4.4f}'.format(total=self.total, quantity=self.quantity)
 
     def __eq__(self, other):
         return other is not None and isinstance(other,
@@ -348,6 +342,7 @@ class CoinfloorBot:
         r = requests.get(url)
         if r.status_code == 200:
             t.parse(r)
+            t.set_fromccy(self.fromccy)  
         return t
 
     def get_order_book(self):
@@ -394,11 +389,15 @@ class CoinfloorBot:
         s = self.get_session()
         r = s.get(url)
         if r.status_code == 200:
-            b = Balance()
-            b.parse(r.json())
-            return b
+            #print('Balance: {}'.format(r.json()))
+            now = datetime.now()
+            to_b = Balance()
+            to_b.parse(r.json(), self.toccy, now)
+            from_b = Balance()
+            from_b.parse(r.json(), self.fromccy, now)
+            return to_b, from_b
         else:
-            return None
+            return None, None
 
     def get_open_orders(self):
         """Private user function"""

@@ -8,11 +8,16 @@ from parse import *
 from persistqueue import PDict
 import logging
 
-cb = CoinfloorBot()
-cb.set_config('coinfloor.props')
+cb_xbt = CoinfloorBot()
+cb_xbt.set_config('coinfloor.props')
+cb_bch = CoinfloorBot(fromccy='BCH')
+cb_bch.set_config('coinfloor.props')
+
+coin_bot = {'XBT': cb_xbt, 'BCH': cb_bch}
 
 config = ConfigParser.SafeConfigParser()
 config.read('warnbot.props')
+
 
 dt = str(datetime.now())[:10]
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -29,9 +34,9 @@ AT_BOT = "<@" + bot_id + ">"
 HELP = 'help'
 HELP_MESSAGE = '```Usage:\n    @warnbot when <coins> [above|below|changes] <value>\n    @warnbot list\n' \
                '    @warnbot clear\n\nExamples:\n' \
-               '    @warnbot when 1 above 7000   # warn me when the price of 1 XBT rises above 7000 GBP\n' \
-               '    @warnbot when 1.5 below 7890   # warn me when 1.5 XBT prices above 7890 GBP\n' \
-               '    @warnbot when 2.3 changes -5    # warn me when the price of 2.3XBT drops by 5%```'
+               '    @warnbot when 1 XBT above 7000   # warn me when the price of 1 XBT rises above 7000 GBP\n' \
+               '    @warnbot when 1.5 BCH below 7890   # warn me when 1.5 BCH prices above 7890 GBP\n' \
+               '    @warnbot when 2.3 XBT changes -5    # warn me when the price of 2.3 XBT drops by 5%```'
 
 HWM = 1
 LWM = 2
@@ -41,11 +46,12 @@ repeat_count = 3
 
 
 class Warning:
-    def __init__(self, warntype, channel, user, coins, value):
+    def __init__(self, warntype, channel, user, coins, ccy, value):
         self.warntype = warntype
         self.channel = channel
         self.user = user
         self.coins = coins
+        self.ccy = ccy
         self.value = value
         self.repeat_count = repeat_count
 
@@ -93,7 +99,8 @@ def get_warning(index):
     return warnings[index]
 
 
-def get_coin_value(amount):
+def get_coin_value(amount, ccy):
+    cb = coin_bot[ccy]
     try:
         mo, resp = cb.estimate_market('sell', {'quantity': amount})
         if mo is not None:
@@ -108,44 +115,46 @@ def get_coin_value(amount):
 def get_values_a(p):
     try:
         coins = float(p['coins'])
+        ccy = str(p['ccy']).upper()
         value = float(p['value'])
-        return coins, value
+        return coins, ccy, value
     except ValueError:
-        return None, None
+        return None, None, None
 
 
-def get_register_msg(coins, watermark, value):
-    return 'registered a warning when the value of {coins} XBT {bar} {value} GBP'.format(coins=coins,
+def get_register_msg(coins, ccy, watermark, value):
+    return 'registered a warning when the value of {coins} {ccy} {bar} {value} GBP'.format(coins=coins, ccy=ccy,
                                                                                          bar=watermark_msgs[watermark],
                                                                                          value=value)
 
 
 def register_watermark(watermark, p, channel, user, ts):
-    coins, value = get_values_a(p)
-    if coins is None:
+    coins, ccy, value = get_values_a(p)
+    logging.debug('coins: {coins} ccy: {ccy} value: {value}'.format(coins=coins, ccy=ccy, value=value))
+    if coins is None or ccy not in ['XBT', 'BCH']:
         return None
-    w = Warning(watermark, channel, user, coins, value)
+    w = Warning(watermark, channel, user, coins, ccy, value)
     add_warning(w, ts)
-    response = get_register_msg(coins, watermark, value)
+    response = get_register_msg(coins, ccy, watermark, value)
 
     return response
 
 
 def register_change(p, channel, user, ts):
-    coins, pcchange = get_values_a(p)
-    if coins is None:
+    coins, ccy, pcchange = get_values_a(p)
+    if coins is None or ccy not in ['XBT','BCH']:
         return None
-    rtvalue = get_coin_value(coins)
+    rtvalue = get_coin_value(coins, ccy)
     if rtvalue is not None:
         value = rtvalue + (rtvalue * (pcchange / 100.0))
         if pcchange > 0:
-            w = Warning(HWM, channel, user, coins, value)
+            w = Warning(HWM, channel, user, coins, ccy, value)
             add_warning(w, ts)
-            response = get_register_msg(coins, HWM, value)
+            response = get_register_msg(coins, ccy, HWM, value)
         else:
-            w = Warning(LWM, channel, user, coins, value)
+            w = Warning(LWM, channel, user, coins, ccy, value)
             add_warning(w, ts)
-            response = get_register_msg(coins, LWM, value)
+            response = get_register_msg(coins, ccy, LWM, value)
         return response
 
     return None
@@ -168,17 +177,17 @@ def register_warning(command, channel, user, ts):
     logging.debug(command)
 
     response = HELP_MESSAGE
-    p = parse('when {coins} below {value}', command)
+    p = parse('when {coins} {ccy} below {value}', command)
     if p:
         r = register_watermark(LWM, p, channel, user, ts)
         if r is not None:
             response = r
-    p = parse('when {coins} above {value}', command)
+    p = parse('when {coins} {ccy} above {value}', command)
     if p:
         r = register_watermark(HWM, p, channel, user, ts)
         if r is not None:
             response = r
-    p = parse('when {coins} changes {value}', command)
+    p = parse('when {coins} {ccy} changes {value}', command)
     if p:
         r = register_change(p, channel, user, ts)
         if r is not None:
@@ -194,7 +203,7 @@ def show_warnings(iuser):
         warning = get_warning(ts)
         if iuser == warning.user:
             msg = msg + '{idx}: {msg}\n'.format(idx=idx,
-                                                msg=get_register_msg(warning.coins, warning.warntype, warning.value))
+                                                msg=get_register_msg(warning.coins, warning.ccy, warning.warntype, warning.value))
             idx += 1
 
     if msg != '':
@@ -219,26 +228,26 @@ def set_repeat(command):
 
 def process_warnings():
     tozap = []
-    coin_value_cache = {}
+    coin_value_cache = {'XBT':{}, 'BCH': {}}
     for ts in warnings:
         logging.debug(warnings[ts])
         resp = None
         warning = get_warning(ts)
         try:
-            rtvalue = coin_value_cache[warning.coins]
+            rtvalue = coin_value_cache[warning.ccy][warning.coins]
         except KeyError:
-            rtvalue = get_coin_value(warning.coins)
+            rtvalue = get_coin_value(warning.coins, warning.ccy)
             if rtvalue is not None:
-                coin_value_cache[warning.coins] = rtvalue
+                coin_value_cache[warning.ccy][warning.coins] = rtvalue
 
         if rtvalue is not None:
-            logging.debug('value of {} is {:,.2f} @ {:.2f}'.format(warning.coins, rtvalue, float(rtvalue/warning.coins)))
+            logging.debug('value of {} {} is {:,.2f} @ {:.2f}'.format(warning.coins, warning.ccy, rtvalue, float(rtvalue/warning.coins)))
             if warning.warntype == HWM and rtvalue > warning.value:
-                resp = 'Warning <@{}>: value of {} XBT has risen above {} to {}'.format(warning.user, warning.coins,
+                resp = 'Warning <@{}>: value of {} {} has risen above {} to {}'.format(warning.user, warning.coins, warning.ccy,
                                                                                         warning.value, rtvalue)
                 warning.dec_count()
             elif warning.warntype == LWM and rtvalue < warning.value:
-                resp = 'Warning <@{}>: value of {} XBT has dropped below {} to {}'.format(warning.user, warning.coins,
+                resp = 'Warning <@{}>: value of {} {} has dropped below {} to {}'.format(warning.user, warning.coins, warning.ccy,
                                                                                           warning.value, rtvalue)
                 warning.dec_count()
 
@@ -249,7 +258,7 @@ def process_warnings():
                 slack_client.api_call("chat.postMessage", channel=warning.channel,
                                       text=resp, as_user=True)
         else:
-            logging.warning('Unable to get realtime value of {} XBT'.format(warning.coins))
+            logging.warning('Unable to get realtime value of {} {}'.format(warning.coins, warning.ccy))
 
     for ts in tozap:
         remove_warning(ts)

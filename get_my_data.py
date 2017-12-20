@@ -8,24 +8,50 @@ if __name__ == '__main__':
     cb.set_config('coinfloor.props')
     session = cb.get_db_session(echo=False)
 
+    cb_bch = CoinfloorBot(fromccy='BCH')
+    cb_bch.set_config('coinfloor.props')
+
     tick = cb.get_ticker()
-    print(tick)
+    print('XBT: {}'.format(tick))
+
+    bch_tick = cb_bch.get_ticker()
+    print('BCH: {}'.format(bch_tick))
 
     current_xbt_price = None
 
-    balance = cb.get_balance()
-    print('My Balance: \n{}'.format(balance))
-    session.add(balance)  # update to db
+    gbp_balance, xbt_balance = cb.get_balance()
+    gbp_balance, bch_balance = cb_bch.get_balance()
+    print('GBP Balance: {}'.format(gbp_balance))
+    print('XBT Balance: {}'.format(xbt_balance))
+    print('BCH Balance: {}'.format(bch_balance))
+    session.add(gbp_balance)  # update to db
+    session.add(xbt_balance)  # update to db
+    session.add(bch_balance)  # update to db
     session.commit()
 
-    if balance.xbt_available > 0:
-        mo, resp = cb.estimate_market('sell', {'quantity': balance.xbt_available})
+
+
+    xbt_valuation = None
+    bch_valuation = None
+    if xbt_balance.available > 0:
+        mo, resp = cb.estimate_market('sell', {'quantity': xbt_balance.available})
         if mo is not None:
-            print('GBP cash valuation: {} @ {}'.format(mo, mo.price()))
-            print('Total Cash Valuation: {:,.2f}'.format(mo.total + balance.gbp_balance))
+            print('XBT GBP cash valuation: {} @ {:8.2f}'.format(mo, mo.price()))
+            xbt_valuation = mo.total
             current_xbt_price = mo.price()
         else:
             print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
+
+    if bch_balance.available > 0:
+        mo, resp = cb_bch.estimate_market('sell', {'quantity': bch_balance.available})
+        if mo is not None:
+            print('BCH GBP cash valuation: {} @ {:8.2f}'.format(mo, mo.price()))
+            bch_valuation = mo.total
+            current_xbt_price = mo.price()
+        else:
+            print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
+
+    print('Total Cash Valuation: {:,.2f}'.format(xbt_valuation + bch_valuation + gbp_balance.balance))
 
     open_orders = cb.get_open_orders()
     print('My Open Orders:')
@@ -45,8 +71,8 @@ if __name__ == '__main__':
 
     session.commit()
 
-    gbp_balance = balance.gbp_balance
-    xbt_balance = balance.xbt_balance
+    gbp_balance = gbp_balance.balance
+    xbt_balance = xbt_balance.balance
     db_user_txns = session.query(UserTransaction).order_by(UserTransaction.tid.desc())
     run_tot = 0.0
     for txn in db_user_txns[:txns_to_show]:

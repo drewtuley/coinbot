@@ -2,6 +2,7 @@ import time
 import requests
 import re
 import os
+import sys
 import signal
 from CoinfloorBot import CoinfloorBot
 from CoinfloorBot import Ticker
@@ -37,10 +38,15 @@ def usr_handler(signum, frame):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        fromccy = sys.argv[1]
+    else:
+        fromccy = 'XBT'
+
     cache = ExpiringDict(max_len=100, max_age_seconds=3600)
     signal.signal(signal.SIGUSR1, usr_handler)
 
-    cb = CoinfloorBot(fromccy='XBT')
+    cb = CoinfloorBot(fromccy=fromccy)
     cb.set_config('coinfloor.props')
 
     session = cb.get_db_session(echo=False)
@@ -49,7 +55,7 @@ if __name__ == '__main__':
 
     dt = str(datetime.now())[:10]
     logging.basicConfig(format='%(asctime)s %(message)s',
-                        filename='logs/ticker_xbt_' + dt + '.log',
+                        filename='logs/ticker_'+fromccy.lower()+'_' + dt + '.log',
                         level=logging.DEBUG)
     logging.captureWarnings(True)
 
@@ -58,13 +64,13 @@ if __name__ == '__main__':
         try:
             t = cb.get_ticker()
             logging.info(t)
-            bal = cb.get_balance()
-            logging.info(bal)
+            gbp_bal,from_bal = cb.get_balance()
+            logging.info(gbp_bal)
             if t is not None and not t.compare_significant(prev_t):
                 volchange = t.volume - prev_t.volume
-                if bal is not None:
-                    val = t.bid * bal.xbt_balance
-                    valdiff = val - (prev_t.bid * bal.xbt_balance)
+                if from_bal is not None:
+                    val = t.bid * from_bal.balance
+                    valdiff = val - (prev_t.bid * from_bal.balance)
                 else:
                     val = 0
                     valdiff = 0

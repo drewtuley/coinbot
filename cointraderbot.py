@@ -7,8 +7,10 @@ import ConfigParser
 from parse import *
 import logging
 
-cb = CoinfloorBot()
+cb = CoinfloorBot(fromccy='XBT')
 cb.set_config('coinfloor.props')
+cb_bch = CoinfloorBot(fromccy='BCH')
+cb_bch.set_config('coinfloor.props')
 
 config = ConfigParser.SafeConfigParser()
 config.read('cointraderbot.props')
@@ -38,16 +40,24 @@ slack_client = SlackClient(slack_bot_token)
 
 
 def show_balance():
-    balance = cb.get_balance()
-    text = '```Balance: {}'.format(balance)
-
-    if balance.xbt_available > 0:
-        mo, resp = cb.estimate_market('sell', {'quantity': balance.xbt_available})
+    gbp_balance, xbt_balance = cb.get_balance()
+    gbp_balance, bch_balance = cb_bch.get_balance()
+    text = '```GBP Balance: {}\nXBT Balance: {}\nBCH Balance: {}'.format(gbp_balance, xbt_balance, bch_balance)
+    if xbt_balance.available > 0:
+        mo, resp = cb.estimate_market('sell', {'quantity': xbt_balance.available})
         if mo is not None:
-            text += '\nGBP cash valuation: {} @ {}'.format(mo, mo.price())
-            text += '\nTotal Cash Valuation: {:,.2f}'.format(mo.total + balance.gbp_balance)
+            xbt_value = mo.total
+            text += '\nXBT cash valuation: {} @ {}'.format(mo, mo.price())
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+    if bch_balance.available > 0:
+        mo, resp = cb_bch.estimate_market('sell', {'quantity': bch_balance.available})
+        if mo is not None:
+            bch_value = mo.total
+            text += '\nBCH cash valuation: {} @ {}'.format(mo, mo.price())
+        else:
+            text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+    text += '\nTotal Cash Valuation: {:,.2f}'.format(xbt_value +bch_value + gbp_balance.balance)
     text += '```'
 
     return text
