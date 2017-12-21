@@ -12,18 +12,18 @@ if __name__ == '__main__':
     cb_bch.set_config('coinfloor.props')
 
     tick = cb.get_ticker()
-    print('XBT: {}'.format(tick))
+    print('{}'.format(tick))
 
     bch_tick = cb_bch.get_ticker()
-    print('BCH: {}'.format(bch_tick))
+    print('{}'.format(bch_tick))
 
     current_xbt_price = None
 
     gbp_balance, xbt_balance = cb.get_balance()
     gbp_balance, bch_balance = cb_bch.get_balance()
-    print('GBP Balance: {}'.format(gbp_balance))
-    print('XBT Balance: {}'.format(xbt_balance))
-    print('BCH Balance: {}'.format(bch_balance))
+    print('{}'.format(gbp_balance))
+    print('{}'.format(xbt_balance))
+    print('{}'.format(bch_balance))
     session.add(gbp_balance)  # update to db
     session.add(xbt_balance)  # update to db
     session.add(bch_balance)  # update to db
@@ -51,12 +51,13 @@ if __name__ == '__main__':
         else:
             print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
 
-    print('Total Cash Valuation: {:,.2f}'.format(xbt_valuation + bch_valuation + gbp_balance.balance))
+    print('Total Cash Valuation:           {:,.2f}'.format(xbt_valuation + bch_valuation + gbp_balance.balance))
 
     open_orders = cb.get_open_orders()
-    print('My Open Orders:')
+    print('\nMy Open Orders:')
     for open_order in open_orders:
         print(open_order)
+
 
     txns_to_show = 10
     if len(sys.argv) > 1:
@@ -68,22 +69,25 @@ if __name__ == '__main__':
         txn_exists = session.query(UserTransaction).filter_by(tid=txn.tid).first()
         if txn_exists is None:
             session.add(txn)
+    user_txns = cb_bch.get_user_transactions()
+    for txn in sorted(user_txns, key=lambda UserTransaction: UserTransaction.tid):
+        txn_exists = session.query(UserTransaction).filter_by(tid=txn.tid).first()
+        if txn_exists is None:
+            session.add(txn)
 
     session.commit()
 
     gbp_balance = gbp_balance.balance
     xbt_balance = xbt_balance.balance
-    db_user_txns = session.query(UserTransaction).order_by(UserTransaction.tid.desc())
+    db_user_txns = session.query(UserTransaction).filter_by(fromccy='XBT').order_by(UserTransaction.tid.desc())
     run_tot = 0.0
     for txn in db_user_txns[:txns_to_show]:
         if current_xbt_price is not None:
-            val = current_xbt_price * txn.xbt
-            pnl = val + txn.gbp
+            val = current_xbt_price * txn.fromccy_amount
+            pnl = val + txn.gbp_amount
         else:
             val = 0.0
             pnl = 0.0
         run_tot += pnl
         print('{txn} Val:{val:10.2f} PnL:{pnl:10.2f} ({rt:10.2f})'.format(txn=txn, val=val, pnl=pnl, rt=run_tot))
 
-    # our_txn = session.query(UserTransaction).filter_by(tid='1496828041313320').first()  # doctest:+NORMALIZE_WHITESPACE
-    # print(our_txn)

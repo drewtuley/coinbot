@@ -25,25 +25,27 @@ class UserTransaction(Base):
     tid = Column(Integer)
     raw_type = Column(Integer)
     mapped_type = Column(String)
-    gbp = Column(Float)
-    xbt = Column(Float)
-    xbt_gbp = Column(Float)
+    gbp_amount = Column(Float)
+    fromccy_amount = Column(Float)
+    price = Column(Float)
     fee = Column(Float)
     order_id = Column(Integer)
+    fromccy = Column(String)
 
-    def parse(self, txn):
+    def parse(self, txn, fromccy):
         self.tf_date = datetime.strptime(txn['datetime'], '%Y-%m-%d %H:%M:%S')
         self.tid = int(txn['id'])
         self.raw_type = int(txn['type'])
         self.mapped_type = self.txn_type_map[self.raw_type]
-        self.gbp = float(txn['gbp'])
-        self.xbt = float(txn['xbt'])
+        self.gbp_amount = float(txn['gbp'])
+        self.fromccy_amount = float(txn[fromccy.lower()])
         try:
-            self.xbt_gbp = float(txn['xbt_gbp'])
+            self.price = float(txn[fromccy.lower()+'_gbp'])
             self.order_id = str(txn['order_id'])
         except TypeError:
             pass
         self.fee = float(txn['fee'])
+        self.fromccy = fromccy
 
     def to_json(self):
         return {'datetime': str(self.tf_date), 'id': self.tid, 'type': self.raw_type,
@@ -51,13 +53,12 @@ class UserTransaction(Base):
                 'fee': self.fee}
 
     def __repr__(self):
-        if self.xbt_gbp is None:
+        if self.price is None:
             xchng = '{:7s}'.format(' ')
         else:
-            xchng = '{:-8.2f}'.format(self.xbt_gbp)
-        return '{} {:15} GBP:{:10.2f}  XBT:{:10.4f} @ {} - id {:18}'.format(self.tf_date,
-                                                                                           self.mapped_type,
-                                                                                           self.gbp, self.xbt,
+            xchng = '{:-8.2f}'.format(self.price)
+        return '{} {:15} GBP:{:10.2f}  {}:{:10.4f} @ {} - id {:18}'.format(self.tf_date, self.mapped_type, self.gbp_amount, 
+                                                                                           self.fromccy, self.fromccy_amount,
                                                                                            xchng,
                                                                                            self.tid)
 
@@ -171,7 +172,7 @@ class Balance(Base):
         self.reserved = float(in_balance[in_ccy.lower()+'_reserved'])
 
     def __repr__(self):
-        return '{ccy}: r {r:10.2f} a {a:10.2f} b {b:10.2f}'.format(r=self.reserved, a=self.available, b=self.balance, ccy = self.ccy)
+        return '{ccy}: reserved {r:10.2f} available {a:10.2f} balance {b:10.2f}'.format(r=self.reserved, a=self.available, b=self.balance, ccy = self.ccy)
 
 
 class Ticker(Base):
@@ -417,11 +418,12 @@ class CoinfloorBot:
         user_txns = []
         url = self.get_url('user_transactions')
         s = self.get_session()
-        r = s.get(url)
+        params = {'limit': 50}
+        r = s.get(url, params=params)
         if r.status_code == 200:
             for txn in r.json():
                 t = UserTransaction()
-                t.parse(txn)
+                t.parse(txn, self.fromccy)
                 user_txns.append(t)
         return user_txns
 

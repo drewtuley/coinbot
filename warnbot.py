@@ -175,10 +175,10 @@ def clear_warnings(user):
     return 'all warnings for <@{}> cleared'.format(user)
 
 
-watermark = 1
-change = 2
-warning_funcs = {'when {coins} {ccy} above {value}': watermark,
-                 'when {coins} {ccy} below {value}': watermark,
+watermark = HWM | LWM
+change = 4
+warning_specs = {'when {coins} {ccy} above {value}': HWM,
+                 'when {coins} {ccy} below {value}': LWM,
                  'when {coins} {ccy} changes {value}': change}
 
 
@@ -186,12 +186,12 @@ def register_warning(command, channel, user, ts):
     logging.debug(command)
 
     response = HELP_MESSAGE
-    for spec in warning_funcs:
+    for spec in warning_specs:
         p = parse(spec, command)
         if p:
-            if warning_funcs[spec] == watermark:
-                r = register_watermark(HWM, p, channel, user, ts)
-            elif warning_funcs[spec] == change:
+            if warning_specs[spec] & watermark == warning_specs[spec] :
+                r = register_watermark(warning_specs[spec], p, channel, user, ts)
+            elif warning_specs[spec] == change:
                 r = register_change(p, channel, user, ts)
             if r is not None:
                 response = r
@@ -243,6 +243,8 @@ def process_warnings():
         except KeyError:
             rtvalue = get_coin_value(warning.coins, warning.ccy)
             if rtvalue is not None:
+                coin_value_cache[warning.ccy][warning.coins] = rtvalue
+
                 coin_value_cache[warning.ccy][warning.coins] = rtvalue
 
         if rtvalue is not None:
@@ -325,5 +327,3 @@ if __name__ == "__main__":
                 handle_command(command, channel, user, ts)
             process_warnings()
             time.sleep(READ_WEBSOCKET_DELAY)
-    else:
-        logging.error("Connection failed. Invalid Slack token or bot ID?")
