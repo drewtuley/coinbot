@@ -17,7 +17,6 @@ if __name__ == '__main__':
     bch_tick = cb_bch.get_ticker()
     print('{}'.format(bch_tick))
 
-    current_xbt_price = None
 
     gbp_balance, xbt_balance = cb.get_balance()
     gbp_balance, bch_balance = cb_bch.get_balance()
@@ -30,6 +29,7 @@ if __name__ == '__main__':
     session.commit()
 
 
+    current_price = {}
 
     xbt_valuation = None
     bch_valuation = None
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         if mo is not None:
             print('XBT GBP cash valuation: {} @ {:8.2f}'.format(mo, mo.price()))
             xbt_valuation = mo.total
-            current_xbt_price = mo.price()
+            current_price['XBT'] = mo.price()
         else:
             print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         if mo is not None:
             print('BCH GBP cash valuation: {} @ {:8.2f}'.format(mo, mo.price()))
             bch_valuation = mo.total
-            current_xbt_price = mo.price()
+            current_price['BCH'] = mo.price()
         else:
             print('unable to get estimate sell market: status: {} value {}'.format(resp.status_code, resp.value))
 
@@ -63,7 +63,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         txns_to_show = int(sys.argv[1])
 
-    print ('My Transactions (top {})'.format(txns_to_show))
     user_txns = cb.get_user_transactions()
     for txn in sorted(user_txns, key=lambda UserTransaction: UserTransaction.tid):
         txn_exists = session.query(UserTransaction).filter_by(tid=txn.tid).first()
@@ -77,13 +76,12 @@ if __name__ == '__main__':
 
     session.commit()
 
-    gbp_balance = gbp_balance.balance
-    xbt_balance = xbt_balance.balance
-    db_user_txns = session.query(UserTransaction).filter_by(fromccy='XBT').order_by(UserTransaction.tid.desc())
+    print ('My Transactions (top {})'.format(txns_to_show))
+    db_user_txns = session.query(UserTransaction).order_by(UserTransaction.tf_date.desc())
     run_tot = 0.0
     for txn in db_user_txns[:txns_to_show]:
-        if current_xbt_price is not None:
-            val = current_xbt_price * txn.fromccy_amount
+        if current_price[txn.fromccy] is not None and txn.gbp_amount < 0:
+            val = current_price[txn.fromccy] * txn.fromccy_amount
             pnl = val + txn.gbp_amount
         else:
             val = 0.0
