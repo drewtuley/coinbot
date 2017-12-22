@@ -67,9 +67,9 @@ if __name__ == '__main__':
                     val = 0
                     valdiff = 0
 
-                message = '{dt} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f})' \
-                    .format(dt=t.date, bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
-                            last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange)
+                message = '{dt} high: {hi} low: {lo} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f})' \
+                    .format(dt=str(t.date)[10:], bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
+                            last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange, lo=t.low, hi=t.high)
                 logging.info(message)
                 cb.post_to_slack(message)
                 logging.info('posted')

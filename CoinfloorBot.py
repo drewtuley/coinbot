@@ -222,7 +222,7 @@ class Ticker(Base):
 
 
     def __repr__(self):
-        return ('Ticker: {ccy} {date} Last: {last:10.2f} High: {high:10.2f} Low: {low:10.2f} vwap: {vwap:10.2f} volume: {volume:6.2f} '
+        return ('Ticker: {ccy} {date} Last: {last:10.2f} High: {high:10.2f} Low: {low:10.2f} vwap: {vwap:10.2f} volume: {volume:7.2f} '
                 'bid: {bid:10.2f} ask: {ask:10.2f}'.
                 format(ccy=self.fromccy, date=self.date, last=self.last, high=self.high,
                        low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))

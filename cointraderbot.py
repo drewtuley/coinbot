@@ -4,6 +4,7 @@ from parse import *
 from datetime import datetime
 import logging
 import time
+import re
 from slackclient import SlackClient
 
 from CoinfloorBot import CoinfloorBot
@@ -58,7 +59,7 @@ def show_balance():
             text += '\nBCH cash valuation: {} @ {}'.format(mo, mo.price())
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
-    text += '\nTotal Cash Valuation: {:,.2f}'.format(xbt_value + bch_value + gbp_balance.balance)
+    text += '\nTotal Cash Valuation:       {:,.2f}'.format(xbt_value + bch_value + gbp_balance.balance)
     text += '```'
 
     return text
@@ -125,6 +126,8 @@ def handle_command(command, channel, user):
         are valid commands. If so, then acts on the commands. If not,
         returns back what it needs for clarification.
     """
+
+    command = re.sub('[ ]{2,}', ' ', command)
     response = "Not sure what you mean. Use the *" + EXAMPLE_COMMAND + \
                "* command with numbers, delimited by spaces."
     logging.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))

@@ -2,6 +2,7 @@ import ConfigParser
 import copy
 import logging
 import time
+import re
 from datetime import datetime
 
 from parse import *
@@ -281,6 +282,7 @@ def handle_command(command, channel, user, ts):
         returns back what it needs for clarification.
     """
     response = "Not sure what you mean. Use the *help* command "
+    command = re.sub('[ ]{2,}', ' ', command)
     logging.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
     if command.startswith(HELP):
         response = HELP_MESSAGE
