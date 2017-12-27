@@ -222,10 +222,19 @@ class Ticker(Base):
 
 
     def __repr__(self):
-        return ('Ticker: {ccy} {date} Last: {last:10.2f} High: {high:10.2f} Low: {low:10.2f} vwap: {vwap:10.2f} volume: {volume:7.2f} '
-                'bid: {bid:10.2f} ask: {ask:10.2f}'.
-                format(ccy=self.fromccy, date=self.date, last=self.last, high=self.high,
-                       low=self.low, vwap=self.vwap, volume=self.volume, bid=self.bid, ask=self.ask))
+        parts = [('Ticker: {}',self.fromccy), (' {}',self.date), (' Last: {:10.2f}',self.last), (' High: {:10.2f}',self.high),
+            (' Low: {:10.2f}',self.low), (' vwap: {:10.2f}',self.vwap), (' volume: {:7.2f}',self.volume), 
+            (' bid: {:10.2f}',self.bid), (' ask: {:10.2f}',self.ask)]
+        ret = ''
+        for p in parts:
+            try:
+                ret = ret + p[0].format(p[1])
+            except ValueError:
+                ret = ret + '.'
+                pass
+
+        return ret
+
 
     def to_json(self):
         return {'last': self.last, 'high': self.high, 'low': self.low, 'vwap': self.vwap,
