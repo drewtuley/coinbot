@@ -1,9 +1,12 @@
 import ConfigParser
 import copy
 import logging
+import requests
 import time
 import re
+import os
 from datetime import datetime
+from expiringdict import ExpiringDict
 
 from parse import *
 from persistqueue import PDict
@@ -11,28 +14,8 @@ from slackclient import SlackClient
 
 from CoinfloorBot import CoinfloorBot
 
-cb_xbt = CoinfloorBot()
-cb_xbt.set_config('coinfloor.props')
-cb_bch = CoinfloorBot(fromccy='BCH')
-cb_bch.set_config('coinfloor.props')
-
-coin_bot = {'XBT': cb_xbt, 'BCH': cb_bch}
-
-config = ConfigParser.SafeConfigParser()
-config.read('warnbot.props')
-
-dt = str(datetime.now())[:10]
-logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename=config.get('warnbot', 'logfile') + dt + '.log',
-                    level=logging.DEBUG)
-logging.captureWarnings(True)
-
-# warnbot's ID in config file
-bot_id = config.get('warnbot', 'bot_id')
-slack_bot_token = config.get('warnbot', 'slack_bot_token')
 
 # constants
-AT_BOT = "<@" + bot_id + ">"
 HELP = 'help'
 HELP_MESSAGE = '```Usage:\n    @warnbot when <coins> [above|below|changes] <value>\n    @warnbot list\n' \
                '    @warnbot clear\n\nExamples:\n' \
@@ -45,6 +28,10 @@ LWM = 2
 watermark_msgs = {HWM: 'rises above', LWM: 'falls below'}
 
 repeat_count = 3
+
+coin_channels = {}
+warnings = {}
+coin_bot = {}
 
 
 class Warning:
@@ -61,23 +48,16 @@ class Warning:
         self.repeat_count -= 1
 
 
-warnings = {}
-warnings_backup = PDict('data', 'warnbot')
-for k in warnings_backup['keys']:
-    warnings[k] = warnings_backup[k]
 
-if len(warnings) > 0:
-    logging.info('Loaded {} warnings from storage'.format(len(warnings)))
 
-try:
-    repeat_count = warnings_backup['repeat']
-except KeyError:
-    pass
 
-warnings_backup['repeat'] = repeat_count
-
-# instantiate Slack & Twilio clients
-slack_client = SlackClient(slack_bot_token)
+def get_my_ip():
+    ip = 'http://ip4.me'
+    r = requests.get(ip)
+    if r.status_code == 200:
+        m = re.search('\d+[.]\d+[.]\d+[.]\d+', r.text)
+        if m != None:
+            return (m.group())
 
 
 def regen_keys():
@@ -232,6 +212,19 @@ def set_repeat(command):
     return response
 
 
+def process_housekeep():
+    if 'myip' not in cache:
+        myip = get_my_ip()
+        cache['myip'] = myip
+        if myip != warnings_backup['myip']:
+            warnings_backup['myip'] = myip
+            for channel_name in coin_channels:
+                logging.debug('set topic on {}'.format(channel_name))
+                ccy = channel_name[10:]
+                topic = 'Watching {} on {} - Chart on http://{}/chart?fromccy={}'.format(ccy.upper(), os.uname()[1], myip, ccy.upper())
+                slack_client.api_call('channels.setTopic', channel=coin_channels[channel_name], topic=topic)
+
+
 def process_warnings():
     tozap = []
     coin_value_cache = {'XBT': {}, 'BCH': {}}
@@ -294,8 +287,12 @@ def handle_command(command, channel, user, ts):
         response = show_warnings(user)
     elif command.startswith('repeat'):
         response = set_repeat(command)
+    elif command.startswith('set the channel topic'):
+        response = None
+    
 
-    slack_client.api_call("chat.postMessage", channel=channel,
+    if response is not None:
+        slack_client.api_call("chat.postMessage", channel=channel,
                           text=response, as_user=True)
 
 
@@ -320,12 +317,67 @@ def parse_slack_output(slack_rtm_output):
 
 if __name__ == "__main__":
 
+    cb_xbt = CoinfloorBot()
+    cb_xbt.set_config('coinfloor.props')
+    cb_bch = CoinfloorBot(fromccy='BCH')
+    cb_bch.set_config('coinfloor.props')
+
+    coin_bot['XBT'] = cb_xbt
+    coin_bot['BCH'] = cb_bch
+
+    config = ConfigParser.SafeConfigParser()
+    config.read('warnbot.props')
+
+    dt = str(datetime.now())[:10]
+    logging.basicConfig(format='%(asctime)s %(message)s',
+                        filename=config.get('warnbot', 'logfile') + dt + '.log',
+                        level=logging.DEBUG)
+    logging.captureWarnings(True)
+
+    cache = ExpiringDict(max_len=10, max_age_seconds=3600)
+    warnings_backup = PDict('data', 'warnbot')
+    for k in warnings_backup['keys']:
+        warnings[k] = warnings_backup[k]
+
+    if len(warnings) > 0:
+        logging.info('Loaded {} warnings from storage'.format(len(warnings)))
+
+    try:
+        repeat_count = warnings_backup['repeat']
+    except KeyError:
+        pass
+
+    warnings_backup['repeat'] = repeat_count
+
+    try:
+        myip = warnings_backup['myip']
+        cache['myip'] = myip
+    except KeyError:
+        pass
+
+    # warnbot's ID in config file
+    bot_id = config.get('warnbot', 'bot_id')
+    AT_BOT = "<@" + bot_id + ">"
+    slack_bot_token = config.get('warnbot', 'slack_bot_token')
+
+    # instantiate Slack & Twilio clients
+    slack_client = SlackClient(slack_bot_token)
+
+
     READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
     if slack_client.rtm_connect():
         logging.debug("warnbot connected and running!")
+        channels = slack_client.api_call('channels.list',exclude_archive='True', exclude_members='True')
+        logging.debug(len(channels['channels']))
+        for channel in channels['channels']:
+            if channel['name'].startswith('coinfloor-'):
+                logging.debug('{} {}'.format(channel['name'], channel['id']))
+                coin_channels[channel['name']] = channel['id']
+
         while True:
             command, channel, user, ts = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
                 handle_command(command, channel, user, ts)
             process_warnings()
+            process_housekeep()
             time.sleep(READ_WEBSOCKET_DELAY)
