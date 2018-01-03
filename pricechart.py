@@ -79,7 +79,7 @@ def do_chart():
     data_txt += ','.join(data)
     data_txt += ']);'
 
-    return render_template('chart_head.html', ccy=fromccy)+data_txt+render_template('chart_tail.html')
+    return render_template('pricechart.html', ccy=fromccy, data=data_txt)
 
 
 if __name__ == '__main__':
