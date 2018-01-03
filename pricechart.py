@@ -39,16 +39,46 @@ def do_chart():
 
 
     ticks = app.session.query(Ticker).filter(Ticker.date > chart_start, Ticker.fromccy==fromccy)
+    smoothed = []
+    smooth_index = {}
+    sm_idx = -1
+    for tick in ticks:
+        dt = tick.date.replace(second=0, microsecond=0)
+        if dt in smooth_index:
+            sm_idx = smooth_index[dt]
+            mids=smoothed[sm_idx]
+            mids.append(tick.bid+((tick.ask - tick.bid)/2))
+            smoothed[sm_idx] = mids
+        else:
+            mids = []
+            sm_idx += 1
+            smooth_index[dt] = sm_idx
+            mids.append(tick.bid+((tick.ask - tick.bid)/2))
+            smoothed.append(mids)
+    
+
+    rev_index = {}
+    for smidx in smooth_index:
+        rev_index[smooth_index[smidx]] = smidx
+
 
     data_txt = 'data.addRows(['
     data = []
-    for tick in ticks:
-        mid = tick.bid+((tick.ask - tick.bid)/2)
-
-        dt = 'new Date({}, {}, {}, {}, {}, {})'.format(tick.date.year, tick.date.month, tick.date.day, tick.date.hour, tick.date.minute, tick.date.second)
+    for sm_idx in rev_index:
+        smooth_date = rev_index[sm_idx]
+        count = 0
+        midsum = 0
+        for mid in smoothed[sm_idx]:
+            midsum += mid
+            count += 1
+        mid = midsum / count
+        
+        dt = 'new Date({}, {}, {}, {}, {}, {})'.format(smooth_date.year, smooth_date.month, smooth_date.day, smooth_date.hour, smooth_date.minute, smooth_date.second)
         data.append('[{},{}]'.format(dt, mid))
+
     data_txt += ','.join(data)
     data_txt += ']);'
+
     return render_template('chart_head.html', ccy=fromccy)+data_txt+render_template('chart_tail.html')
 
 
@@ -58,4 +88,4 @@ if __name__ == '__main__':
     session = cb.get_db_session(echo=False)
     app.set_session(session)
 
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=False, host='0.0.0.0')
