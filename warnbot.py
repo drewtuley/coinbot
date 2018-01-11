@@ -221,7 +221,7 @@ def process_housekeep():
             for channel_name in coin_channels:
                 logging.debug('set topic on {}'.format(channel_name))
                 ccy = channel_name[10:]
-                topic = 'Watching {} on {} - Chart on http://{}/chart?fromccy={}'.format(ccy.upper(), os.uname()[1], myip, ccy.upper())
+                topic = 'Watching {} on {} - Chart on http://andrewtuley.com/chart?fromccy={}'.format(ccy.upper(), os.uname()[1], ccy.upper())
                 slack_client.api_call('channels.setTopic', channel=coin_channels[channel_name], topic=topic)
 
 
