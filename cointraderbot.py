@@ -135,7 +135,7 @@ def handle_command(command, channel, user):
         response = "Sure...write some more code then I can do that!"
     elif command.startswith(HELP):
         response = 'Hi <@{}> I can do the following:\n*buy* - buy coins\n*sell* - sell coins'.format(user)
-    elif command == 'show balance':
+    elif command in ['show balance', 'sb']:
         response = show_balance()
     elif command.startswith('value'):
         response = get_value(command, user)
