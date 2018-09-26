@@ -73,7 +73,7 @@ def do_chart():
             count += 1
         mid = midsum / count
         
-        dt = 'new Date({}, {}, {}, {}, {}, {})'.format(smooth_date.year, smooth_date.month, smooth_date.day, smooth_date.hour, smooth_date.minute, smooth_date.second)
+        dt = 'new Date({}, {}, {}, {}, {}, {})'.format(smooth_date.year, smooth_date.month-1, smooth_date.day, smooth_date.hour, smooth_date.minute, smooth_date.second)
         data.append('[{},{}]'.format(dt, mid))
 
     data_txt += ','.join(data)
