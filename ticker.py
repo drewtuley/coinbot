@@ -13,9 +13,9 @@ from CoinfloorBot import CoinfloorBot
 
 def show_change(curr_val, prev_val):
     if curr_val < prev_val:
-        arrow = ':arrow_down_small:'
+        arrow = ':arrow_down_small_red:'
     elif curr_val > prev_val:
-        arrow = ':arrow_up_small:'
+        arrow = ':arrow_up_small_green:'
     else:
         arrow = ':arrow_left:'
 
