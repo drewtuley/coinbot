@@ -1,10 +1,12 @@
 from flask import Flask
 from flask import request
 from flask import render_template
+from flask import send_from_directory
 from CoinfloorBot import CoinfloorBot
 from CoinfloorBot import Ticker
 from datetime import timedelta
 from datetime import datetime
+import os
 
 
 
@@ -17,6 +19,10 @@ class PriceChart(Flask):
 
 app = PriceChart(__name__)
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/chart/', methods=['GET'])
 def do_chart():
