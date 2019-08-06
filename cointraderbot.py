@@ -43,7 +43,8 @@ slack_client = SlackClient(slack_bot_token)
 
 def show_balance():
     gbp_balance, xbt_balance = cb.get_balance()
-    gbp_balance, bch_balance = cb_bch.get_balance()
+    #gbp_balance, bch_balance = cb_bch.get_balance()
+    bch_balance = None
     text = '```{}\n{}\n{}'.format(gbp_balance, xbt_balance, bch_balance)
     if xbt_balance.available > 0:
         mo, resp = cb.estimate_market('sell', {'quantity': xbt_balance.available})
@@ -52,13 +53,15 @@ def show_balance():
             text += '\nXBT cash valuation: {} @ {}'.format(mo, mo.price())
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
-    if bch_balance.available > 0:
+    if bch_balance is not None and bch_balance.available > 0:
         mo, resp = cb_bch.estimate_market('sell', {'quantity': bch_balance.available})
         if mo is not None:
             bch_value = mo.total
             text += '\nBCH cash valuation: {} @ {}'.format(mo, mo.price())
         else:
             text += 'unable to get estimate sell market: status: {} '.format(resp.status_code)
+    else:
+        bch_value = 0.0
     text += '\nTotal Cash Valuation:       {:,.2f}'.format(xbt_value + bch_value + gbp_balance.balance)
     text += '```'
 

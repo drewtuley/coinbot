@@ -319,11 +319,8 @@ if __name__ == "__main__":
 
     cb_xbt = CoinfloorBot()
     cb_xbt.set_config('coinfloor.props')
-    cb_bch = CoinfloorBot(fromccy='BCH')
-    cb_bch.set_config('coinfloor.props')
 
     coin_bot['XBT'] = cb_xbt
-    coin_bot['BCH'] = cb_bch
 
     config = ConfigParser.SafeConfigParser()
     config.read('warnbot.props')
