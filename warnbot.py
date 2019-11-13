@@ -1,6 +1,7 @@
 import ConfigParser
 import copy
 import logging
+import logging.handlers
 import requests
 import time
 import re
@@ -32,6 +33,8 @@ repeat_count = 3
 coin_channels = {}
 warnings = {}
 coin_bot = {}
+
+logger = None
 
 
 class Warning:
@@ -90,7 +93,7 @@ def get_coin_value(amount, ccy):
         else:
             return None
     except:
-        logging.error('failed to get coin value')
+        logger.error('failed to get coin value')
         return None
 
 
@@ -113,7 +116,7 @@ def get_register_msg(coins, ccy, watermark, value):
 
 def register_watermark(watermark, p, channel, user, ts):
     coins, ccy, value = get_values_a(p)
-    logging.debug('coins: {coins} ccy: {ccy} value: {value}'.format(coins=coins, ccy=ccy, value=value))
+    logger.debug('coins: {coins} ccy: {ccy} value: {value}'.format(coins=coins, ccy=ccy, value=value))
     if coins is None or ccy not in ['XBT', 'BCH']:
         return None
     w = Warning(watermark, channel, user, coins, ccy, value)
@@ -164,7 +167,7 @@ warning_specs = {'when {coins} {ccy} above {value}': HWM,
 
 
 def register_warning(command, channel, user, ts):
-    logging.debug(command)
+    logger.debug(command)
 
     response = HELP_MESSAGE
     for spec in warning_specs:
@@ -219,7 +222,7 @@ def process_housekeep():
         if myip != warnings_backup['myip']:
             warnings_backup['myip'] = myip
             for channel_name in coin_channels:
-                logging.debug('set topic on {}'.format(channel_name))
+                logger.debug('set topic on {}'.format(channel_name))
                 ccy = channel_name[10:]
                 topic = 'Watching {} on {} - Chart on http://andrewtuley.com/chart?fromccy={}'.format(ccy.upper(), os.uname()[1], ccy.upper())
                 slack_client.api_call('channels.setTopic', channel=coin_channels[channel_name], topic=topic)
@@ -229,7 +232,7 @@ def process_warnings():
     tozap = []
     coin_value_cache = {'XBT': {}, 'BCH': {}}
     for ts in warnings:
-        logging.debug(warnings[ts])
+        logger.debug(warnings[ts])
         resp = None
         warning = get_warning(ts)
         try:
@@ -242,7 +245,7 @@ def process_warnings():
                 coin_value_cache[warning.ccy][warning.coins] = rtvalue
 
         if rtvalue is not None:
-            logging.debug('value of {} {} is {:,.2f} @ {:.2f}'.format(warning.coins, warning.ccy, rtvalue,
+            logger.debug('value of {} {} is {:,.2f} @ {:.2f}'.format(warning.coins, warning.ccy, rtvalue,
                                                                       float(rtvalue / warning.coins)))
             if warning.warntype == HWM and rtvalue > warning.value:
                 resp = 'Warning <@{}>: value of {} {} has risen above {} to {}'.format(warning.user, warning.coins,
@@ -258,11 +261,11 @@ def process_warnings():
             if warning.repeat_count <= 0:
                 tozap.append(ts)
             if resp is not None:
-                logging.debug('post to slack {}'.format(resp))
+                logger.debug('post to slack {}'.format(resp))
                 slack_client.api_call("chat.postMessage", channel=warning.channel,
                                       text=resp, as_user=True)
         else:
-            logging.warning('Unable to get realtime value of {} {}'.format(warning.coins, warning.ccy))
+            logger.warning('Unable to get realtime value of {} {}'.format(warning.coins, warning.ccy))
 
     for ts in tozap:
         remove_warning(ts)
@@ -276,7 +279,7 @@ def handle_command(command, channel, user, ts):
     """
     response = "Not sure what you mean. Use the *help* command "
     command = re.sub('[ ]{2,}', ' ', command)
-    logging.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
+    logger.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
     if command.startswith(HELP):
         response = HELP_MESSAGE
     elif command.startswith('when'):
@@ -304,7 +307,7 @@ def parse_slack_output(slack_rtm_output):
     """
     for o in slack_rtm_output:
         for key in o:
-            logging.debug('{}:{}'.format(key, o[key]))
+            logger.debug('{}:{}'.format(key, o[key]))
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
@@ -325,11 +328,13 @@ if __name__ == "__main__":
     config = ConfigParser.SafeConfigParser()
     config.read('warnbot.props')
 
-    dt = str(datetime.now())[:10]
-    logging.basicConfig(format='%(asctime)s %(message)s',
-                        filename=config.get('warnbot', 'logfile') + dt + '.log',
-                        level=logging.DEBUG)
-    logging.captureWarnings(True)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.handlers.TimedRotatingFileHandler(filename=config.get('warnbot','logfile'), when='midnight', interval=1, backupCount=5)
+    fh.setLevel(logging.DEBUG)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
 
     cache = ExpiringDict(max_len=10, max_age_seconds=3600)
     warnings_backup = PDict('data', 'warnbot')

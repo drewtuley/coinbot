@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import os
 import re
 import sys
@@ -46,10 +47,13 @@ if __name__ == '__main__':
     prev_t = cb.get_ticker()
 
     dt = str(datetime.now())[:10]
-    logging.basicConfig(format='%(asctime)s %(message)s',
-                        filename='logs/ticker_' + fromccy.lower() + '_' + dt + '.log',
-                        level=logging.DEBUG)
-    logging.captureWarnings(True)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.handlers.TimedRotatingFileHandler('logs/ticker_'+fromccy.lower()+'.log', when='midnight', interval=1, backupCount=5)
+    fh.setLevel(logging.DEBUG)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
 
     loop_wait = 15
     while loop_wait > 0:
@@ -57,7 +61,7 @@ if __name__ == '__main__':
             t = cb.get_ticker()
             logging.info(t)
             gbp_bal, from_bal = cb.get_balance()
-            logging.info(gbp_bal)
+            logger.info(gbp_bal)
             if t is not None and not t.compare_significant(prev_t):
                 volchange = t.volume - prev_t.volume
                 if from_bal is not None:
@@ -70,9 +74,9 @@ if __name__ == '__main__':
                 message = '{dt} high: {hi} low: {lo} bid: {bid} ask: {ask} - last: {last}  vol(24H): {vol:3.2f} ({vc:2.2f})' \
                     .format(dt=str(t.date)[10:], bid=show_change(t.bid, prev_t.bid), ask=show_change(t.ask, prev_t.ask),
                             last=show_change(t.last, prev_t.last), vol=t.volume, vc=volchange, lo=t.low, hi=t.high)
-                logging.info(message)
+                logger.info(message)
                 cb.post_to_slack(message)
-                logging.info('posted')
+                logger.info('posted')
                 session.add(t)
                 session.commit()
                 prev_t = t
@@ -82,7 +86,7 @@ if __name__ == '__main__':
                     cb.post_to_slack('ticker connected on {} ({})'.format(os.uname()[1], myip))
                     cache['myip'] = myip
         except Exception as err:
-            print(err)
+            logger.error(err)
             pass
 
         with open('ticker.loop') as fd:

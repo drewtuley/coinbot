@@ -3,6 +3,7 @@ import ConfigParser
 from parse import *
 from datetime import datetime
 import logging
+import logging.handlers
 import time
 import re
 from slackclient import SlackClient
@@ -17,11 +18,14 @@ cb_bch.set_config('coinfloor.props')
 config = ConfigParser.SafeConfigParser()
 config.read('cointraderbot.props')
 
-dt = str(datetime.now())[:10]
-logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename=config.get('cointraderbot', 'logfile') + dt + '.log',
-                    level=logging.DEBUG)
-logging.captureWarnings(True)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fh = logging.handlers.TimedRotatingFileHandler(filename=config.get('cointraderbot','logfile'), when='midnight', interval=1, backupCount=5)
+fh.setLevel(logging.DEBUG)
+fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+fh.setFormatter(fmt)
+logger.addHandler(fh)
 
 # starterbot's ID as an environment variable
 bot_id = config.get('cointraderbot', 'bot_id')
@@ -92,7 +96,7 @@ def get_estimated_value(buy_sell, amount):
         value_cache[user] = amount
     else:
         text += 'unable to get estimated {} market: status: {} '.format(buy_sell, resp.status_code)
-    logging.info(text)
+    logger.info(text)
 
     return text
 
@@ -133,7 +137,7 @@ def handle_command(command, channel, user):
     command = re.sub('[ ]{2,}', ' ', command)
     response = "Not sure what you mean. Use the *" + EXAMPLE_COMMAND + \
                "* command with numbers, delimited by spaces."
-    logging.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
+    logger.debug('Command:{} Channel: {} User: {}'.format(command, channel, user))
     if command.startswith(EXAMPLE_COMMAND):
         response = "Sure...write some more code then I can do that!"
     elif command.startswith(HELP):
@@ -157,7 +161,7 @@ def parse_slack_output(slack_rtm_output):
     """
     for o in slack_rtm_output:
         for key in o:
-            logging.debug('{}:{}'.format(key, o[key]))
+            logger.debug('{}:{}'.format(key, o[key]))
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
@@ -172,7 +176,7 @@ if __name__ == "__main__":
 
     READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
     if slack_client.rtm_connect():
-        logging.debug("CoinTraderbot connected and running!")
+        logger.debug("CoinTraderbot connected and running!")
         while True:
             command, channel, user = parse_slack_output(slack_client.rtm_read())
             if command and channel and user:
@@ -180,4 +184,4 @@ if __name__ == "__main__":
 
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
-        logging.debug("Connection failed. Invalid Slack token or bot ID?")
+        logger.debug("Connection failed. Invalid Slack token or bot ID?")
