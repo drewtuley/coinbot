@@ -6,6 +6,7 @@ from CoinfloorBot import CoinfloorBot
 from CoinfloorBot import Ticker
 from datetime import timedelta
 from datetime import datetime
+from dotmap import DotMap
 import os
 
 
@@ -26,6 +27,7 @@ def favicon():
 
 @app.route('/chart/', methods=['GET'])
 def do_chart():
+    meta = DotMap()
     fromccy = request.args.get('fromccy','XBT')
     period = request.args.get('period','12h')
     if fromccy is None or fromccy not in ['XBT','BCH']:
@@ -43,7 +45,7 @@ def do_chart():
 
     chart_start = datetime.now() - timedelta(hours=hours)
 
-
+    meta.fetch.start = datetime.now()
     ticks = app.session.query(Ticker).filter(Ticker.date > chart_start, Ticker.fromccy==fromccy)
     smoothed = []
     smooth_index = {}
@@ -62,12 +64,12 @@ def do_chart():
             mids.append(tick.bid+((tick.ask - tick.bid)/2))
             smoothed.append(mids)
     
-
+    meta.fetch.end = datetime.now()
     rev_index = {}
     for smidx in smooth_index:
         rev_index[smooth_index[smidx]] = smidx
 
-
+    meta.dataform.start = datetime.now()
     data_txt = 'data.addRows(['
     data = []
     for sm_idx in rev_index:
@@ -84,8 +86,9 @@ def do_chart():
 
     data_txt += ','.join(data)
     data_txt += ']);'
+    meta.dataform.end = datetime.now()
 
-    return render_template('pricechart.html', ccy=fromccy, data=data_txt)
+    return render_template('pricechart.html', ccy=fromccy, data=data_txt, meta=meta)
 
 
 if __name__ == '__main__':
